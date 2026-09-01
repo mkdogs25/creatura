@@ -3,6 +3,7 @@ import {
   BookOpen,
   CalendarPlus,
   FilePlus2,
+  FileUp,
   FolderPlus,
   Grid3x3,
   MapPin,
@@ -75,6 +76,13 @@ export function TopNav() {
     },
     { id: 'folder', label: 'Folder', icon: FolderPlus, onSelect: actions.createFolder },
     { id: 'tag', label: 'Tag', icon: TagIcon, onSelect: actions.createTag },
+    { id: 's', separator: true },
+    {
+      id: 'import-markdown',
+      label: 'Import markdown as notes…',
+      icon: FileUp,
+      onSelect: () => void actions.importMarkdownNotes(),
+    },
   ];
 
   return (

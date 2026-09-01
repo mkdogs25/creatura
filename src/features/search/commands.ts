@@ -3,6 +3,7 @@ import {
   CalendarPlus,
   Download,
   FilePlus2,
+  FileUp,
   FolderPlus,
   Grid3x3,
   MapPin,
@@ -36,6 +37,7 @@ export interface CommandContext {
   toggleTheme: () => void;
   exportProject: () => void;
   importProject: () => void;
+  importMarkdownNotes: () => void;
 }
 
 /**
@@ -153,6 +155,14 @@ export function buildCommands(context: CommandContext): Command[] {
       icon: Upload,
       keywords: 'restore json open file',
       run: () => context.importProject(),
+    },
+    {
+      id: 'import-markdown',
+      label: 'Import Markdown Notes',
+      group: 'Create',
+      icon: FileUp,
+      keywords: 'md text file note obsidian',
+      run: () => context.importMarkdownNotes(),
     },
   ];
 }

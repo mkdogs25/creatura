@@ -35,6 +35,37 @@ export function pickTextFile(accept = 'application/json,.json'): Promise<{ name:
   });
 }
 
+/** Opens a file picker for one or more text files — used for markdown note import. */
+export function pickTextFiles(
+  accept = '.md,.markdown,.mdown,.txt,text/markdown,text/plain',
+): Promise<Array<{ name: string; text: string }>> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.multiple = true;
+    input.onchange = async () => {
+      const files = input.files ? Array.from(input.files) : [];
+      if (files.length === 0) {
+        resolve([]);
+        return;
+      }
+      const read = await Promise.allSettled(
+        files.map(async (file) => ({ name: file.name, text: await file.text() })),
+      );
+      resolve(
+        read
+          .filter((result): result is PromiseFulfilledResult<{ name: string; text: string }> =>
+            result.status === 'fulfilled',
+          )
+          .map((result) => result.value),
+      );
+    };
+    input.oncancel = () => resolve([]);
+    input.click();
+  });
+}
+
 /** Reads an image file as a data URL, for map backgrounds. */
 export function pickImageAsDataUrl(): Promise<string | null> {
   return new Promise((resolve) => {

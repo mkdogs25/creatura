@@ -5,7 +5,8 @@ import { useUiStore } from '@/store/uiStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useNavigation } from '@/hooks/useNavigation';
 import { bundleToExport, filenameFor, parseProjectFile } from '@/features/projects/portability';
-import { downloadTextFile, pickTextFile } from '@/utils/download';
+import { downloadTextFile, pickTextFile, pickTextFiles } from '@/utils/download';
+import { markdownToDoc, titleFromFilename } from '@/utils/markdown';
 import type { DocKind, ThemeMode, ViewId } from '@/types/domain';
 
 /**
@@ -145,6 +146,43 @@ export function useProjectActions() {
     return true;
   }, [importBundle, setActiveDoc, setView, toast]);
 
+  /**
+   * Reads one or more markdown/plain-text files and creates a note per file,
+   * converting basic markdown formatting into the editor's own node types.
+   * Returns the number actually imported, so callers can tell a cancelled
+   * picker (0) from a real import.
+   */
+  const importMarkdownNotes = useCallback(
+    async (folderId: string | null = null): Promise<number> => {
+      const files = await pickTextFiles();
+      if (files.length === 0) return 0;
+
+      let firstId: string | null = null;
+      for (const file of files) {
+        const id = createDocInStore({
+          kind: 'note',
+          name: titleFromFilename(file.name),
+          folderId,
+          content: markdownToDoc(file.text),
+        });
+        firstId ??= id;
+      }
+
+      setView('library');
+      if (firstId) setActiveDoc(firstId);
+      toast({
+        tone: 'success',
+        title:
+          files.length === 1
+            ? `Imported “${titleFromFilename(files[0].name)}”`
+            : `Imported ${files.length} notes`,
+        body: files.length > 1 ? 'Each file became its own note.' : undefined,
+      });
+      return files.length;
+    },
+    [createDocInStore, setActiveDoc, setView, toast],
+  );
+
   return useMemo(
     () => ({
       createDoc,
@@ -156,6 +194,7 @@ export function useProjectActions() {
       toggleTheme,
       exportProject,
       importProject,
+      importMarkdownNotes,
     }),
     [
       createDoc,
@@ -167,6 +206,7 @@ export function useProjectActions() {
       toggleTheme,
       exportProject,
       importProject,
+      importMarkdownNotes,
     ],
   );
 }

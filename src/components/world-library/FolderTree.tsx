@@ -3,6 +3,7 @@ import {
   ChevronRight,
   FilePlus2,
   FileText,
+  FileUp,
   FolderPlus,
   MapPin,
   Pencil,
@@ -14,6 +15,7 @@ import { useProjectStore } from '@/store/projectStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useUiStore } from '@/store/uiStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useProjectActions } from '@/hooks/useProjectActions';
 import {
   allDocs,
   childFolders,
@@ -45,6 +47,7 @@ export function FolderTree() {
   const activeDocId = useEditorStore((s) => s.activeDocId);
   const setActiveDoc = useEditorStore((s) => s.setActiveDoc);
   const defaultKind = useSettingsStore((s) => s.settings.writing.defaultDocKind);
+  const { importMarkdownNotes } = useProjectActions();
   const [dragging, setDragging] = useState<DragPayload | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -88,6 +91,16 @@ export function FolderTree() {
               onClick={() => setActiveDoc(createDoc({ kind: defaultKind }))}
             >
               <FilePlus2 size={14} />
+            </Button>
+          </Tooltip>
+          <Tooltip label="Import markdown as notes">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Import markdown files as notes"
+              onClick={() => void importMarkdownNotes(null)}
+            >
+              <FileUp size={14} />
             </Button>
           </Tooltip>
         </div>
@@ -179,6 +192,7 @@ function FolderRow({
   const activeDocId = useEditorStore((s) => s.activeDocId);
   const confirm = useUiStore((s) => s.confirm);
   const confirmDestructive = useSettingsStore((s) => s.settings.interface.confirmDestructive);
+  const { importMarkdownNotes } = useProjectActions();
   const menu = useMenu();
 
   const children = useMemo(() => childFolders(bundle, folder.id), [bundle, folder.id]);
@@ -221,6 +235,15 @@ function FolderRow({
         const id = createFolder({ parentId: folder.id, defaultKind: folder.defaultKind });
         updateFolder(folder.id, { collapsed: false });
         setRenaming(id);
+      },
+    },
+    {
+      id: 'import-markdown',
+      label: 'Import markdown notes here',
+      icon: FileUp,
+      onSelect: () => {
+        updateFolder(folder.id, { collapsed: false });
+        void importMarkdownNotes(folder.id);
       },
     },
     { id: 's1', separator: true },
