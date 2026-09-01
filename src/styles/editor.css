@@ -1,0 +1,163 @@
+/*
+ * Manuscript styling for the Tiptap surface.
+ *
+ * Sizes come from CSS variables the editor writes from user settings, so
+ * changing font size or measure in Settings reflows the page without
+ * re-creating the editor (which would cost the cursor and undo history).
+ */
+.creatura-prose {
+  font-family: var(--editor-font, var(--font-prose));
+  font-size: var(--editor-size, 18px);
+  line-height: var(--editor-leading, 1.7);
+  color: var(--color-ink);
+  max-width: var(--editor-measure, 720px);
+  margin: 0 auto;
+  padding: 0 1.5rem 40vh;
+  outline: none;
+}
+
+.creatura-prose > * + * {
+  margin-top: calc(var(--editor-paragraph-gap, 0.75) * 1em);
+}
+
+.creatura-prose p {
+  margin: 0;
+  hyphens: auto;
+}
+
+.creatura-prose h1,
+.creatura-prose h2,
+.creatura-prose h3 {
+  font-family: var(--font-prose);
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-ink);
+  margin-top: 1.6em;
+  margin-bottom: 0.1em;
+  letter-spacing: -0.01em;
+}
+.creatura-prose h1 {
+  font-size: 1.72em;
+}
+.creatura-prose h2 {
+  font-size: 1.36em;
+}
+.creatura-prose h3 {
+  font-size: 1.14em;
+  color: var(--color-ink-muted);
+}
+
+.creatura-prose blockquote {
+  border-left: 2px solid var(--color-accent);
+  padding-left: 1.15em;
+  margin-left: 0;
+  color: var(--color-ink-muted);
+  font-style: italic;
+}
+
+.creatura-prose ul,
+.creatura-prose ol {
+  padding-left: 1.4em;
+}
+.creatura-prose ul {
+  list-style: disc;
+}
+.creatura-prose ol {
+  list-style: decimal;
+}
+.creatura-prose li {
+  margin: 0.25em 0;
+}
+.creatura-prose li > p {
+  margin: 0;
+}
+
+.creatura-prose hr {
+  border: none;
+  height: 1px;
+  background: var(--color-line);
+  margin: 2.2em auto;
+  width: 40%;
+}
+
+.creatura-prose a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  cursor: pointer;
+}
+
+.creatura-prose code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+
+.creatura-prose pre {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  padding: 0.9em 1em;
+  overflow-x: auto;
+}
+.creatura-prose pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+/* Placeholder shown on the first empty paragraph only. */
+.creatura-prose p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--color-ink-faint);
+}
+
+/* ── Entity references ──────────────────────────────────────────────────── */
+
+.entity-ref {
+  display: inline;
+  font-family: var(--font-sans);
+  font-size: 0.9em;
+  font-weight: 500;
+  color: var(--color-accent);
+  background: color-mix(in oklab, var(--color-accent) 12%, transparent);
+  border-bottom: 1px solid color-mix(in oklab, var(--color-accent) 45%, transparent);
+  border-radius: 3px;
+  padding: 0.05em 0.3em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 120ms var(--ease-out-soft);
+}
+.entity-ref:hover {
+  background: color-mix(in oklab, var(--color-accent) 22%, transparent);
+}
+.entity-ref.is-unresolved {
+  color: var(--color-ink-faint);
+  background: color-mix(in oklab, var(--color-ink-faint) 12%, transparent);
+  border-bottom-style: dashed;
+  border-bottom-color: var(--color-ink-faint);
+  font-style: italic;
+}
+.entity-ref.ProseMirror-selectednode {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* Typewriter mode keeps the caret line near the vertical centre. */
+.creatura-prose.is-typewriter {
+  padding-bottom: 50vh;
+  padding-top: 28vh;
+}
+
+.ProseMirror-gapcursor:after {
+  border-top-color: var(--color-ink);
+}
