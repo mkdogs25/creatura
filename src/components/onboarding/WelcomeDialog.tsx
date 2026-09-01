@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { BookOpen, Grid3x3, Sparkles, Timer } from 'lucide-react';
+import { BookOpen, Grid3x3, Sparkles, Timer, Upload } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { useUiStore } from '@/store/uiStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useEditorStore } from '@/store/editorStore';
+import { useProjectActions } from '@/hooks/useProjectActions';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { QuillMark } from '@/components/navigation/QuillMark';
@@ -41,6 +42,7 @@ export function WelcomeDialog() {
   const updateSettings = useSettingsStore((s) => s.update);
   const importBundle = useProjectStore((s) => s.importBundle);
   const setActiveDoc = useEditorStore((s) => s.setActiveDoc);
+  const { importProject } = useProjectActions();
   const [busy, setBusy] = useState(false);
 
   const finish = () => {
@@ -62,6 +64,19 @@ export function WelcomeDialog() {
         title: 'Demo project opened',
         body: 'Tidewrack is an ordinary project — edit or delete it freely.',
       });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const importExisting = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      // Cancelling the file picker or an invalid file both resolve false —
+      // either way the welcome screen should stay put rather than vanish.
+      const imported = await importProject();
+      if (imported) finish();
     } finally {
       setBusy(false);
     }
@@ -115,6 +130,10 @@ export function WelcomeDialog() {
           <Button variant="secondary" size="lg" onClick={loadDemo} disabled={busy}>
             <Sparkles size={14} />
             Open demo project
+          </Button>
+          <Button variant="secondary" size="lg" onClick={importExisting} disabled={busy}>
+            <Upload size={14} />
+            Import a project file
           </Button>
           <Button variant="ghost" size="lg" onClick={finish}>
             Skip

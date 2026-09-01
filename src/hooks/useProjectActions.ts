@@ -114,9 +114,12 @@ export function useProjectActions() {
     });
   }, [bundle, toast, updateSettings]);
 
-  const importProject = useCallback(async () => {
+  /** Returns whether a project was actually imported, so callers that gate
+   * further UI on it (closing a dialog, marking onboarding done) know
+   * whether the file picker was cancelled or the file was rejected. */
+  const importProject = useCallback(async (): Promise<boolean> => {
     const file = await pickTextFile();
-    if (!file) return;
+    if (!file) return false;
     const result = parseProjectFile(file.text);
     if (!result.ok || !result.bundle) {
       toast({
@@ -125,7 +128,7 @@ export function useProjectActions() {
         body: result.error ?? 'The file could not be read.',
         sticky: true,
       });
-      return;
+      return false;
     }
     await importBundle(result.bundle);
     setView('library');
@@ -139,6 +142,7 @@ export function useProjectActions() {
           : 'Every record was read successfully.',
       duration: result.warnings.length > 0 ? 8000 : 4200,
     });
+    return true;
   }, [importBundle, setActiveDoc, setView, toast]);
 
   return useMemo(

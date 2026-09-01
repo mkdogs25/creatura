@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { ChevronRight, FolderTree } from 'lucide-react';
+import { ChevronRight, FolderTree, Upload } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { useUiStore } from '@/store/uiStore';
 import { useEditorStore } from '@/store/editorStore';
+import { useProjectActions } from '@/hooks/useProjectActions';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Field, Input, Textarea } from '@/components/ui/Input';
@@ -21,6 +22,7 @@ export function ProjectDialog() {
   const toast = useUiStore((s) => s.toast);
   const createProject = useProjectStore((s) => s.createProject);
   const setActiveDoc = useEditorStore((s) => s.setActiveDoc);
+  const { importProject } = useProjectActions();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -63,6 +65,17 @@ export function ProjectDialog() {
       size="lg"
       footer={
         <>
+          <Button
+            variant="ghost"
+            onClick={async () => {
+              const imported = await importProject();
+              if (imported) setOpen(false);
+            }}
+            className="mr-auto"
+          >
+            <Upload size={13} />
+            Import a file instead
+          </Button>
           <Button variant="ghost" onClick={() => setOpen(false)}>
             Cancel
           </Button>
