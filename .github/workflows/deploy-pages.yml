@@ -1,0 +1,57 @@
+name: Deploy to GitHub Pages
+
+# Builds the production bundle and publishes it to GitHub Pages.
+#
+# One-time setup required before this does anything: in the repo's
+# Settings -> Pages, set "Build and deployment" -> Source to "GitHub Actions".
+# That toggle needs repository admin access, which this workflow does not
+# have on its own — nothing deploys until it's flipped once by a maintainer.
+on:
+  push:
+    branches: [claude/creatura-writing-studio-xeorm9]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one Pages deployment at a time; a newer push cancels an in-flight one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+        env:
+          # This repo is not <owner>.github.io, so Pages serves it from a
+          # subpath — the build has to know that to emit correct asset URLs.
+          VITE_BASE_PATH: /creatura/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
