@@ -41,6 +41,14 @@ jobs:
           VITE_BASE_PATH: /creatura/
 
       - uses: actions/configure-pages@v5
+        with:
+          # Attempts to create the Pages site itself via the API using this
+          # workflow's own token (it already has `pages: write`, granted
+          # above). If the account/repo plan doesn't allow that, this step
+          # fails the same way it did without `enablement`, and the Settings
+          # -> Pages -> Source: GitHub Actions toggle has to be flipped by
+          # a human with admin access instead.
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
