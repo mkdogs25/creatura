@@ -30,6 +30,7 @@ export function bundleToExport(bundle: ProjectBundle): ProjectExport {
     maps: bundle.maps,
     markers: bundle.markers,
     cells: bundle.cells,
+    chapters: bundle.chapters,
   };
 }
 
@@ -142,6 +143,7 @@ export function parseProjectFile(text: string): ImportResult {
   const maps = dedupe(data.maps);
   const markers = dedupe(data.markers);
   const cells = dedupe(data.cells);
+  const chapters = dedupe(data.chapters);
 
   /** Resolves an old id, or null when the file never contained the target. */
   const ref = (oldId: string | null | undefined): string | null =>
@@ -235,6 +237,11 @@ export function parseProjectFile(text: string): ImportResult {
         },
       ];
     }),
+    // Chapter prose can contain @references, same as any note.
+    chapters: chapters.map((chapter) => ({
+      ...chapter,
+      content: remapContent(chapter.content) as RichContent,
+    })),
   };
 
   return { ok: true, bundle, warnings: [...new Set(warnings)] };

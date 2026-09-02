@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  BookText,
   CalendarPlus,
   Download,
   FilePlus2,
@@ -33,7 +34,8 @@ export interface CommandContext {
   createFolder: () => void;
   createTag: () => void;
   createEvent: () => void;
-  goto: (view: 'library' | 'timeline' | 'matrix' | 'settings') => void;
+  createChapter: () => void;
+  goto: (view: 'library' | 'timeline' | 'manuscript' | 'matrix' | 'settings') => void;
   toggleFocus: () => void;
   toggleTheme: () => void;
   exportProject: () => void;
@@ -81,6 +83,14 @@ export function buildCommands(context: CommandContext): Command[] {
       run: () => context.createEvent(),
     },
     {
+      id: 'create-chapter',
+      label: 'Create Chapter',
+      group: 'Create',
+      icon: BookText,
+      keywords: 'new manuscript draft write',
+      run: () => context.createChapter(),
+    },
+    {
       id: 'create-folder',
       label: 'Create Folder',
       group: 'Create',
@@ -111,10 +121,19 @@ export function buildCommands(context: CommandContext): Command[] {
       run: () => context.goto('timeline'),
     },
     {
+      id: 'goto-manuscript',
+      label: 'Open Manuscript',
+      group: 'Navigate',
+      icon: BookText,
+      keywords: 'chapters draft write',
+      run: () => context.goto('manuscript'),
+    },
+    {
       id: 'goto-matrix',
       label: 'Open Matrix',
       group: 'Navigate',
       icon: Grid3x3,
+      keywords: 'grid relationships table',
       run: () => context.goto('matrix'),
     },
     {

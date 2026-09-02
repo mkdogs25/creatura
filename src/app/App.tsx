@@ -15,6 +15,7 @@ import { useThemeEffect } from '@/hooks/useThemeEffect';
 import { TopNav } from '@/components/navigation/TopNav';
 import { WorldLibraryView } from '@/components/world-library/WorldLibraryView';
 import { TimelineView } from '@/components/timeline/TimelineView';
+import { ManuscriptView } from '@/components/manuscript/ManuscriptView';
 import { MatrixView } from '@/components/matrix/MatrixView';
 import { SettingsView } from '@/components/settings/SettingsView';
 import { CommandPalette } from '@/components/command-palette/CommandPalette';
@@ -110,6 +111,7 @@ export function App() {
           <ProjectGate>
             {view === 'library' && <WorldLibraryView />}
             {view === 'timeline' && <TimelineView />}
+            {view === 'manuscript' && <ManuscriptView />}
             {view === 'matrix' && <MatrixView />}
             {view === 'settings' && <SettingsView />}
           </ProjectGate>

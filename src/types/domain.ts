@@ -12,7 +12,7 @@ export const SCHEMA_VERSION = 1;
 
 export type ThemeMode = 'dark' | 'light' | 'system';
 export type Density = 'compact' | 'comfortable';
-export type ViewId = 'library' | 'timeline' | 'matrix' | 'settings';
+export type ViewId = 'library' | 'timeline' | 'manuscript' | 'matrix' | 'settings';
 
 /** The three kinds of writable document that live in the folder tree. */
 export type DocKind = 'note' | 'character' | 'location';
@@ -29,7 +29,8 @@ export type EntityKind =
   | 'relationship'
   | 'section'
   | 'project'
-  | 'cell';
+  | 'cell'
+  | 'chapter';
 
 /** Tiptap JSON — kept structurally loose so stored docs never fail to load. */
 export interface RichContent {
@@ -216,6 +217,27 @@ export interface MatrixCell {
   updatedAt: number;
 }
 
+/**
+ * One chapter of the project's actual manuscript.
+ *
+ * Deliberately not a DocKind: a chapter doesn't live in the folder tree
+ * alongside worldbuilding notes, doesn't carry tags or metadata fields, and
+ * is ordered as a flat, reorderable sequence rather than nested — it's the
+ * spine of the draft itself, not a piece of reference material about it.
+ */
+export interface ManuscriptChapter {
+  id: string;
+  projectId: string;
+  title: string;
+  content: RichContent;
+  excerpt: string;
+  wordCount: number;
+  charCount: number;
+  order: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export type TemplateId = 'fantasy' | 'scifi' | 'custom' | 'blank';
 
 export interface Project {
@@ -272,6 +294,8 @@ export interface InterfaceSettings {
   rightPanelWidth: number;
   tooltips: boolean;
   confirmDestructive: boolean;
+  /** Matrix View is reachable via ⌘K regardless; this also gives it a tab. */
+  showMatrixTab: boolean;
 }
 
 export interface Settings {
@@ -303,6 +327,7 @@ export interface ProjectExport {
   maps: StoryMap[];
   markers: MapMarker[];
   cells: MatrixCell[];
+  chapters: ManuscriptChapter[];
 }
 
 /** Everything belonging to one project, as held in memory by the store. */
@@ -320,6 +345,7 @@ export interface ProjectBundle {
   maps: StoryMap[];
   markers: MapMarker[];
   cells: MatrixCell[];
+  chapters: ManuscriptChapter[];
 }
 
 /**

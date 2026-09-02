@@ -5,6 +5,7 @@ import type {
   DocSnapshot,
   Folder,
   LocationDoc,
+  ManuscriptChapter,
   MapMarker,
   MatrixCell,
   NoteDoc,
@@ -40,6 +41,7 @@ export class CreaturaDatabase extends Dexie {
   cells!: Table<MatrixCell, string>;
   settings!: Table<Settings, string>;
   snapshots!: Table<DocSnapshot, string>;
+  chapters!: Table<ManuscriptChapter, string>;
 
   constructor() {
     super('creatura');
@@ -64,6 +66,7 @@ export const PROJECT_TABLES = [
   'maps',
   'markers',
   'cells',
+  'chapters',
 ] as const;
 
 export type ProjectTableName = (typeof PROJECT_TABLES)[number];

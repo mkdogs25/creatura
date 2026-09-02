@@ -1,5 +1,6 @@
 import { db, PROJECT_TABLES } from '@/db/database';
 import {
+  chapterSchema,
   characterSchema,
   eventSchema,
   folderSchema,
@@ -59,6 +60,7 @@ export async function loadProjectBundle(projectId: string): Promise<ProjectBundl
     maps,
     markers,
     cells,
+    chapters,
   ] = await Promise.all([
     where(db.folders),
     where(db.characters),
@@ -72,6 +74,7 @@ export async function loadProjectBundle(projectId: string): Promise<ProjectBundl
     where(db.maps),
     where(db.markers),
     where(db.cells),
+    where(db.chapters),
   ]);
 
   return {
@@ -88,6 +91,7 @@ export async function loadProjectBundle(projectId: string): Promise<ProjectBundl
     maps: parseAll(mapSchema, maps, 'map'),
     markers: parseAll(markerSchema, markers, 'marker'),
     cells: parseAll(matrixCellSchema, cells, 'matrix cell'),
+    chapters: parseAll(chapterSchema, chapters, 'chapter'),
   };
 }
 
@@ -110,6 +114,7 @@ export async function saveProjectBundle(bundle: ProjectBundle): Promise<void> {
       await db.maps.bulkPut(bundle.maps);
       await db.markers.bulkPut(bundle.markers);
       await db.cells.bulkPut(bundle.cells);
+      await db.chapters.bulkPut(bundle.chapters);
     },
   );
 }

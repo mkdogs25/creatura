@@ -14,6 +14,7 @@ import { kindOfId } from '@/utils/id';
 export function useNavigation() {
   const setView = useUiStore((s) => s.setView);
   const setActiveDoc = useEditorStore((s) => s.setActiveDoc);
+  const setActiveChapter = useEditorStore((s) => s.setActiveChapter);
   const toggleRightPanel = useUiStore((s) => s.toggleRightPanel);
   const setFocusMode = useUiStore((s) => s.setFocusMode);
   const isNarrow = useUiStore((s) => s.isNarrow);
@@ -40,11 +41,23 @@ export function useNavigation() {
     [setView, setFocusMode],
   );
 
+  const openChapter = useCallback(
+    (chapterId: string) => {
+      setView('manuscript');
+      setActiveChapter(chapterId);
+    },
+    [setView, setActiveChapter],
+  );
+
   const openEntity = useCallback(
     (entityId: string) => {
       const kind = kindOfId(entityId);
       if (kind === 'event') {
         openEvent(entityId);
+        return;
+      }
+      if (kind === 'chapter') {
+        openChapter(entityId);
         return;
       }
       if (kind === 'character' || kind === 'location' || kind === 'note') {
@@ -56,8 +69,8 @@ export function useNavigation() {
         setView('library');
       }
     },
-    [openDoc, openEvent, setView],
+    [openDoc, openEvent, openChapter, setView],
   );
 
-  return { openDoc, openEvent, openEntity };
+  return { openDoc, openEvent, openChapter, openEntity };
 }

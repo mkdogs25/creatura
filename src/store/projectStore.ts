@@ -5,6 +5,7 @@ import type {
   DocKind,
   Folder,
   LocationDoc,
+  ManuscriptChapter,
   MapMarker,
   MatrixCell,
   NoteDoc,
@@ -40,6 +41,7 @@ import {
   deleteRecord,
   deleteRecords,
   putRecord,
+  putRecords,
 } from '@/db/repositories/collectionRepository';
 import { persistence } from '@/store/persistence';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -135,6 +137,15 @@ interface ProjectState {
   // ── matrix ─────────────────────────────────────────────────────────────
   upsertCell: (characterId: string, locationId: string, patch: Partial<MatrixCell>) => void;
   deleteCell: (id: string) => void;
+
+  // ── manuscript ─────────────────────────────────────────────────────────
+  createChapter: (input?: Partial<ManuscriptChapter>) => string;
+  updateChapterTitle: (id: string, title: string) => void;
+  updateChapterContent: (id: string, content: RichContent) => void;
+  restoreChapterSnapshot: (id: string, content: RichContent) => void;
+  deleteChapter: (id: string) => void;
+  reorderChapter: (id: string, order: number) => void;
+  duplicateChapter: (id: string) => string | null;
 }
 
 /** Applies a mutation to the in-memory bundle and returns the new bundle. */
@@ -316,6 +327,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       source.maps.forEach((m) => register(m.id));
       source.markers.forEach((m) => register(m.id));
       source.cells.forEach((c) => register(c.id));
+      source.chapters.forEach((c) => register(c.id));
 
       const now = Date.now();
       const projectId2 = newId('project');
@@ -391,6 +403,12 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           projectId: projectId2,
           characterId: remap(c.characterId),
           locationId: remap(c.locationId),
+        })),
+        chapters: source.chapters.map((c) => ({
+          ...c,
+          id: remap(c.id),
+          projectId: projectId2,
+          content: remapContentReferences(c.content, remap),
         })),
       };
 
@@ -1168,6 +1186,138 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         patchBundle(state, (b) => ({ ...b, cells: b.cells.filter((c) => c.id !== id) })),
       );
       write(() => deleteRecord('cells', id));
+    },
+
+    // ── manuscript ───────────────────────────────────────────────────────
+    createChapter: (input) => {
+      const bundle = get().bundle;
+      if (!bundle) return '';
+      const now = Date.now();
+      const chapter: ManuscriptChapter = {
+        id: newId('chapter'),
+        projectId: bundle.project.id,
+        title: 'Untitled chapter',
+        content: emptyDoc(),
+        excerpt: '',
+        wordCount: 0,
+        charCount: 0,
+        order: nextOrder(bundle.chapters),
+        createdAt: now,
+        updatedAt: now,
+        ...input,
+      };
+      set((state) =>
+        patchBundle(state, (b) => ({ ...b, chapters: [...b.chapters, chapter] })),
+      );
+      write(() => putRecord('chapters', chapter));
+      return chapter.id;
+    },
+
+    updateChapterTitle: (id, title) => {
+      const bundle = get().bundle;
+      if (!bundle) return;
+      const current = bundle.chapters.find((c) => c.id === id);
+      if (!current) return;
+      const next = { ...current, title: title.trim() || 'Untitled chapter', updatedAt: Date.now() };
+      set((state) =>
+        patchBundle(state, (b) => ({
+          ...b,
+          chapters: b.chapters.map((c) => (c.id === id ? next : c)),
+        })),
+      );
+      write(() => putRecord('chapters', next));
+    },
+
+    updateChapterContent: (id, content) => {
+      const bundle = get().bundle;
+      if (!bundle) return;
+      const current = bundle.chapters.find((c) => c.id === id);
+      if (!current) return;
+      const text = docToPlainText(content);
+      const next: ManuscriptChapter = {
+        ...current,
+        content,
+        excerpt: makeExcerpt(text),
+        wordCount: countWords(text),
+        charCount: text.length,
+        updatedAt: Date.now(),
+      };
+      set((state) =>
+        patchBundle(state, (b) => ({
+          ...b,
+          chapters: b.chapters.map((c) => (c.id === id ? next : c)),
+        })),
+      );
+      write(async () => {
+        if (await maybeSnapshot(current)) useEditorStore.getState().noteSnapshotWritten();
+        await putRecord('chapters', next);
+      });
+    },
+
+    restoreChapterSnapshot: (id, content) => {
+      const bundle = get().bundle;
+      if (!bundle) return;
+      const current = bundle.chapters.find((c) => c.id === id);
+      if (!current) return;
+      const text = docToPlainText(content);
+      const next: ManuscriptChapter = {
+        ...current,
+        content,
+        excerpt: makeExcerpt(text),
+        wordCount: countWords(text),
+        charCount: text.length,
+        updatedAt: Date.now(),
+      };
+      set((state) =>
+        patchBundle(state, (b) => ({
+          ...b,
+          chapters: b.chapters.map((c) => (c.id === id ? next : c)),
+        })),
+      );
+      write(async () => {
+        await maybeSnapshot(current);
+        await putRecord('chapters', next);
+      });
+    },
+
+    deleteChapter: (id) => {
+      set((state) =>
+        patchBundle(state, (b) => ({ ...b, chapters: b.chapters.filter((c) => c.id !== id) })),
+      );
+      write(async () => {
+        await deleteRecord('chapters', id);
+        await deleteSnapshotsFor(id);
+      });
+    },
+
+    reorderChapter: (id, order) => {
+      const bundle = get().bundle;
+      if (!bundle) return;
+      const moving = bundle.chapters.find((c) => c.id === id);
+      if (!moving) return;
+
+      // Standard "reinsert at position" reorder: pull the chapter out, splice
+      // it back in at the target index, then renumber everything so `order`
+      // always stays a dense, gap-free sequence.
+      const rest = bundle.chapters.filter((c) => c.id !== id).sort((a, b) => a.order - b.order);
+      const clampedIndex = Math.max(0, Math.min(order, rest.length));
+      rest.splice(clampedIndex, 0, moving);
+      const reordered = rest.map((chapter, index) => ({ ...chapter, order: index }));
+
+      set((state) => patchBundle(state, (b) => ({ ...b, chapters: reordered })));
+      write(() => putRecords('chapters', reordered));
+    },
+
+    duplicateChapter: (id) => {
+      const bundle = get().bundle;
+      const source = bundle?.chapters.find((c) => c.id === id);
+      if (!source) return null;
+      return get().createChapter({
+        ...source,
+        id: undefined,
+        title: `${source.title} copy`,
+        order: source.order + 1,
+      } as Partial<ManuscriptChapter>);
     },
   };
 });

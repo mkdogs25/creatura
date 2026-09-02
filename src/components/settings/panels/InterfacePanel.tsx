@@ -40,6 +40,15 @@ export function InterfacePanel() {
         />
       </SettingsSection>
 
+      <SettingsSection title="Navigation">
+        <Switch
+          label="Show Matrix View as a tab"
+          description="Matrix View is always reachable from ⌘K — enable this to also pin it in the top navigation."
+          checked={ui.showMatrixTab}
+          onChange={(showMatrixTab) => update('interface', { showMatrixTab })}
+        />
+      </SettingsSection>
+
       <SettingsSection title="Assistance">
         <Switch
           label="Tooltips"

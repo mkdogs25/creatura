@@ -31,4 +31,9 @@ export function applyMigrations(db: Dexie): void {
   db.version(2).stores({
     snapshots: 'id, docId, projectId, createdAt, [docId+createdAt]',
   });
+
+  // v3 — adds manuscript chapters, the project's actual draft text.
+  db.version(3).stores({
+    chapters: 'id, projectId, order',
+  });
 }

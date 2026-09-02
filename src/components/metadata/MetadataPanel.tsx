@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
-import { CalendarClock, History, MapPin, Network, Tags, User } from 'lucide-react';
+import { CalendarClock, History, MapPin, Network, Sparkles, Tags, User } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { useEditorStore } from '@/store/editorStore';
+import { useUiStore } from '@/store/uiStore';
 import {
+  allDocs,
   docById,
   eventsForEntity,
   locationsForCharacter,
@@ -12,6 +14,8 @@ import { TagEditor } from '@/components/metadata/TagEditor';
 import { MetadataFields } from '@/components/metadata/MetadataFields';
 import { RelationshipEditor } from '@/components/metadata/RelationshipEditor';
 import { HistorySection } from '@/components/metadata/HistorySection';
+import { EntitySuggestions } from '@/components/metadata/EntitySuggestions';
+import { linkEntityInContent } from '@/features/mentions/entitySuggestions';
 import { formatPosition } from '@/utils/time';
 import { relativeTime } from '@/utils/text';
 import type { DocKind } from '@/types/domain';
@@ -56,11 +60,17 @@ function Section({
  */
 export function MetadataPanel() {
   const activeDocId = useEditorStore((s) => s.activeDocId);
+  const reloadContent = useEditorStore((s) => s.reloadContent);
   const bundle = useProjectStore((s) => s.bundle);
   const updateDoc = useProjectStore((s) => s.updateDoc);
+  const createDoc = useProjectStore((s) => s.createDoc);
+  const updateDocContent = useProjectStore((s) => s.updateDocContent);
+  const restoreSnapshot = useProjectStore((s) => s.restoreSnapshot);
+  const toast = useUiStore((s) => s.toast);
   const { openEntity, openEvent } = useNavigation();
 
   const doc = useMemo(() => docById(bundle, activeDocId), [bundle, activeDocId]);
+  const knownNames = useMemo(() => allDocs(bundle).map((d) => d.name), [bundle]);
 
   const events = useMemo(
     () => (doc ? eventsForEntity(bundle, doc.id) : []),
@@ -100,6 +110,13 @@ export function MetadataPanel() {
 
   const appearsLabel = doc.kind === 'location' ? 'Cast Present' : 'Appears In';
 
+  const createFromSuggestion = (kind: 'character' | 'location', name: string) => {
+    const id = createDoc({ kind, name });
+    updateDocContent(doc.id, linkEntityInContent(doc.content, name, id));
+    reloadContent();
+    toast({ tone: 'success', title: `Created “${name}”`, body: 'Mentions in this document now link to it.' });
+  };
+
   return (
     <div className="scroll-thin h-full overflow-y-auto">
       <div className="px-4 pt-3.5 pb-1">
@@ -108,6 +125,15 @@ export function MetadataPanel() {
           Edited {relativeTime(doc.updatedAt)} · {doc.wordCount.toLocaleString()} words
         </p>
       </div>
+
+      <Section icon={Sparkles} title="Suggestions">
+        <EntitySuggestions
+          key={doc.id}
+          content={doc.content}
+          knownNames={knownNames}
+          onCreate={createFromSuggestion}
+        />
+      </Section>
 
       <Section icon={Tags} title="Tags">
         <TagEditor
@@ -147,7 +173,7 @@ export function MetadataPanel() {
       )}
 
       <Section icon={History} title="Recent versions">
-        <HistorySection docId={doc.id} updatedAt={doc.updatedAt} />
+        <HistorySection docId={doc.id} updatedAt={doc.updatedAt} onRestore={restoreSnapshot} />
       </Section>
 
       <Section icon={CalendarClock} title="Timeline">

@@ -1,21 +1,28 @@
 import { useCallback, useEffect, useState } from 'react';
 import { History, RotateCcw } from 'lucide-react';
-import { useProjectStore } from '@/store/projectStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useUiStore } from '@/store/uiStore';
 import { listSnapshots, MAX_SNAPSHOTS } from '@/db/repositories/snapshotRepository';
-import type { DocSnapshot } from '@/types/domain';
+import type { DocSnapshot, RichContent } from '@/types/domain';
 import { relativeTime } from '@/utils/text';
 import { Button } from '@/components/ui/Button';
+
+interface HistorySectionProps {
+  docId: string;
+  updatedAt: number;
+  /** Writes a restored version back — a Note/Character/Location or a chapter. */
+  onRestore: (docId: string, content: RichContent) => void;
+}
 
 /**
  * Recent states of the open document.
  *
  * Not a version history — a short ring of restore points, so a bad paste or an
  * accidental select-all is recoverable after the autosave has already written.
+ * Works for any document kind that keeps snapshots (world-library docs and
+ * manuscript chapters alike) — the caller supplies how a restore is written.
  */
-export function HistorySection({ docId, updatedAt }: { docId: string; updatedAt: number }) {
-  const restoreSnapshot = useProjectStore((s) => s.restoreSnapshot);
+export function HistorySection({ docId, updatedAt, onRestore }: HistorySectionProps) {
   const reloadContent = useEditorStore((s) => s.reloadContent);
   const historyToken = useEditorStore((s) => s.historyToken);
   const confirm = useUiStore((s) => s.confirm);
@@ -75,7 +82,7 @@ export function HistorySection({ docId, updatedAt }: { docId: string; updatedAt:
                 confirmLabel: 'Restore',
               });
               if (!ok) return;
-              restoreSnapshot(docId, snapshot.content);
+              onRestore(docId, snapshot.content);
               reloadContent();
               refresh();
               toast({ tone: 'success', title: 'Version restored' });

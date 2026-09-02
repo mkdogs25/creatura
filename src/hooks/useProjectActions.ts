@@ -20,10 +20,12 @@ export function useProjectActions() {
   const createFolderInStore = useProjectStore((s) => s.createFolder);
   const createTagInStore = useProjectStore((s) => s.createTag);
   const createEventInStore = useProjectStore((s) => s.createEvent);
+  const createChapterInStore = useProjectStore((s) => s.createChapter);
   const importBundle = useProjectStore((s) => s.importBundle);
 
   const setActiveDoc = useEditorStore((s) => s.setActiveDoc);
   const activeDocId = useEditorStore((s) => s.activeDocId);
+  const setActiveChapter = useEditorStore((s) => s.setActiveChapter);
 
   const setView = useUiStore((s) => s.setView);
   const focusMode = useUiStore((s) => s.focusMode);
@@ -85,6 +87,13 @@ export function useProjectActions() {
     const id = createEventInStore({ title: 'New event', start: 1, duration: 1 });
     if (id) openEvent(id);
   }, [createEventInStore, openEvent]);
+
+  const createChapter = useCallback(() => {
+    const id = createChapterInStore({});
+    if (!id) return;
+    setView('manuscript');
+    setActiveChapter(id);
+  }, [createChapterInStore, setActiveChapter, setView]);
 
   const goto = useCallback((view: ViewId) => setView(view), [setView]);
 
@@ -223,6 +232,7 @@ export function useProjectActions() {
       createFolder,
       createTag,
       createEvent,
+      createChapter,
       goto,
       toggleFocus,
       toggleTheme,
@@ -236,6 +246,7 @@ export function useProjectActions() {
       createFolder,
       createTag,
       createEvent,
+      createChapter,
       goto,
       toggleFocus,
       toggleTheme,

@@ -55,11 +55,14 @@ export function useKeyboardShortcuts(): void {
         case 's': {
           // Flush the editor's pending content immediately.
           event.preventDefault();
-          const { activeDocId, editor, setDirty } = useEditorStore.getState();
-          if (activeDocId && editor) {
-            useProjectStore
-              .getState()
-              .updateDocContent(activeDocId, editor.getJSON() as RichContent);
+          const { activeDocId, activeChapterId, editor, setDirty } = useEditorStore.getState();
+          if (editor && (activeDocId || activeChapterId)) {
+            const content = editor.getJSON() as RichContent;
+            if (activeChapterId && ui.view === 'manuscript') {
+              useProjectStore.getState().updateChapterContent(activeChapterId, content);
+            } else if (activeDocId) {
+              useProjectStore.getState().updateDocContent(activeDocId, content);
+            }
             setDirty(false);
           }
           ui.toast({ tone: 'success', title: 'Saved', duration: 1600 });
@@ -72,7 +75,7 @@ export function useKeyboardShortcuts(): void {
         }
         case '.': {
           event.preventDefault();
-          ui.setView('library');
+          if (ui.view !== 'manuscript') ui.setView('library');
           ui.setFocusMode(!ui.focusMode);
           return;
         }
@@ -100,7 +103,7 @@ export function useKeyboardShortcuts(): void {
         ui.setView('timeline');
       } else if (event.key === '3') {
         event.preventDefault();
-        ui.setView('matrix');
+        ui.setView('manuscript');
       }
     };
 

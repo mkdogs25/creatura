@@ -138,6 +138,7 @@ export function emptyBundle(project: Project, folders: Folder[]): ProjectBundle 
     maps: [],
     markers: [],
     cells: [],
+    chapters: [],
   };
 }
 

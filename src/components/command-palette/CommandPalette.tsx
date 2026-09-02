@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  BookText,
   CalendarClock,
   CornerDownLeft,
   FileText,
@@ -26,6 +27,7 @@ const RESULT_ICON = {
   folder: FolderIcon,
   event: CalendarClock,
   tag: TagIcon,
+  chapter: BookText,
 };
 
 type Row =

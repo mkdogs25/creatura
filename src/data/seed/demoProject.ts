@@ -1,6 +1,7 @@
 import type {
   CharacterDoc,
   LocationDoc,
+  ManuscriptChapter,
   MapMarker,
   MatrixCell,
   NoteDoc,
@@ -228,6 +229,34 @@ const NOTES: DocSpec[] = [
       'The tide went out further than it should have, and kept going.',
       '@elysia had walked the seawall through eleven winters and knew the shape of every low water the coast was capable of. This was not one of them. Below her the harbour lay open to its bones — mooring chains, a drowned street, the ribs of something that had been a ship when her mother was a girl.',
       'She counted the lights out of habit. There were nine. There had been eleven the night before, and eleven every night for as long as the chalk on the seawall could remember.',
+    ],
+  },
+];
+
+interface ChapterSpec {
+  title: string;
+  body: string[];
+}
+
+/** The manuscript itself — separate from the Lore note above, which is an
+ * early fragment rather than the polished opening. */
+const CHAPTERS: ChapterSpec[] = [
+  {
+    title: 'Chapter One — The Count',
+    body: [
+      'The tide went out further than it should have, and kept going.',
+      '@elysia had walked the seawall through eleven winters and knew the shape of every low water the coast was capable of. This was not one of them. Below her the harbour lay open to its bones — mooring chains, a drowned street, the ribs of something that had been a ship when her mother was a girl.',
+      'She counted the lights out of habit, the way she counted everything now: doors, footsteps, the seconds between one wave and the next. There were nine. There had been eleven the night before, and eleven every night for as long as the chalk on the seawall could remember.',
+      'By the time the sun came up the whole of @lanternquay had heard about it, and by noon half of @glasscity had an opinion, and none of them were the right one.',
+    ],
+  },
+  {
+    title: 'Chapter Two — The Writ',
+    body: [
+      '@kael came ashore on the last tide before the festival, which was either very good timing or very bad, and he had not yet decided which.',
+      'He carried the writ the way he carried everything the Order gave him — visibly, and with the understanding that once it was drawn the conversation was already over. He had read Elysia Ambrose’s name on it eleven times on the crossing and had not gotten any more comfortable with it.',
+      '“You’ll want to put that away before you reach the quay,” said the ferryman, not unkindly. “They don’t love the Order here even on a good day, and today the tide is nine lanterns short of a good day.”',
+      'Kael put it away. It did not make the crossing any shorter, and it did not make what waited at the end of it any easier.',
     ],
   },
 ];
@@ -550,6 +579,23 @@ export function buildDemoProject(): ProjectBundle {
     kind: 'note' as const,
   }));
 
+  const chapters: ManuscriptChapter[] = CHAPTERS.map((spec, index) => {
+    const content = parseBody(spec.body, resolve);
+    const text = docToPlainText(content);
+    return {
+      id: newId('chapter'),
+      projectId: project.id,
+      title: spec.title,
+      content,
+      excerpt: makeExcerpt(text),
+      wordCount: countWords(text),
+      charCount: text.length,
+      order: index,
+      createdAt: now + index,
+      updatedAt: now + index,
+    };
+  });
+
   const povIdByKey = new Map<Key, string>();
   const povs: PointOfView[] = POVS.map((spec, index) => {
     const id = newId('pov');
@@ -660,5 +706,6 @@ export function buildDemoProject(): ProjectBundle {
     maps: [map],
     markers,
     cells,
+    chapters,
   };
 }

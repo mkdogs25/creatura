@@ -2,8 +2,11 @@ import { create } from 'zustand';
 import type { Editor } from '@tiptap/react';
 
 interface EditorState {
-  /** Document currently open in the centre panel. */
+  /** Document currently open in World Library's centre panel. */
   activeDocId: string | null;
+  /** Chapter currently open in the Manuscript view — a separate slot since
+   * the two views are mutually exclusive but each remembers its own place. */
+  activeChapterId: string | null;
   /** The live Tiptap instance, registered by the editor component. */
   editor: Editor | null;
   /** Live counts, updated on selection/transaction rather than from storage. */
@@ -21,6 +24,7 @@ interface EditorState {
   historyToken: number;
 
   setActiveDoc: (docId: string | null) => void;
+  setActiveChapter: (chapterId: string | null) => void;
   setEditor: (editor: Editor | null) => void;
   setCounts: (words: number, chars: number) => void;
   setDirty: (dirty: boolean) => void;
@@ -35,6 +39,7 @@ interface EditorState {
  */
 export const useEditorStore = create<EditorState>((set) => ({
   activeDocId: null,
+  activeChapterId: null,
   editor: null,
   liveWords: 0,
   liveChars: 0,
@@ -43,6 +48,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   historyToken: 0,
 
   setActiveDoc: (docId) => set({ activeDocId: docId }),
+  setActiveChapter: (chapterId) => set({ activeChapterId: chapterId }),
   setEditor: (editor) => set({ editor }),
   setCounts: (liveWords, liveChars) => set({ liveWords, liveChars }),
   setDirty: (dirty) => set({ dirty }),

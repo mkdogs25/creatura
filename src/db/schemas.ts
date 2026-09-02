@@ -171,6 +171,19 @@ export const matrixCellSchema = z.object({
   updatedAt: timestamp.catch(() => Date.now()),
 });
 
+export const chapterSchema = z.object({
+  id: id,
+  projectId: id,
+  title: z.string().catch('Untitled chapter'),
+  content: richContentSchema,
+  excerpt: z.string().catch(''),
+  wordCount: z.number().int().nonnegative().catch(0),
+  charCount: z.number().int().nonnegative().catch(0),
+  order: z.number().catch(0),
+  createdAt: timestamp.catch(() => Date.now()),
+  updatedAt: timestamp.catch(() => Date.now()),
+});
+
 export const projectSchema = z.object({
   id: id,
   name: z.string().catch('Untitled project'),
@@ -254,6 +267,7 @@ export const settingsSchema = z.object({
       rightPanelWidth: z.number().min(240).max(520).catch(320),
       tooltips: z.boolean().catch(true),
       confirmDestructive: z.boolean().catch(true),
+      showMatrixTab: z.boolean().catch(false),
     })
     .catch({
       sidebarDefaultOpen: true,
@@ -262,6 +276,7 @@ export const settingsSchema = z.object({
       rightPanelWidth: 320,
       tooltips: true,
       confirmDestructive: true,
+      showMatrixTab: false,
     }),
   onboardingComplete: z.boolean().catch(false),
   activeProjectId: z.string().nullable().catch(null),
@@ -285,6 +300,7 @@ export const projectExportSchema = z.object({
   maps: z.array(mapSchema).catch([]),
   markers: z.array(markerSchema).catch([]),
   cells: z.array(matrixCellSchema).catch([]),
+  chapters: z.array(chapterSchema).catch([]),
 });
 
 /**

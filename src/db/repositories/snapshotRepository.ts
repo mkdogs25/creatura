@@ -1,6 +1,14 @@
 import { db } from '@/db/database';
-import type { AnyDoc, DocSnapshot } from '@/types/domain';
+import type { DocSnapshot, RichContent } from '@/types/domain';
 import { newId } from '@/utils/id';
+
+/** The minimal shape a snapshot needs — satisfied by any doc kind or a chapter. */
+interface Snapshottable {
+  id: string;
+  projectId: string;
+  content: RichContent;
+  wordCount: number;
+}
 
 /** How many recent states to keep per document. */
 export const MAX_SNAPSHOTS = 8;
@@ -20,7 +28,7 @@ export async function listSnapshots(docId: string): Promise<DocSnapshot[]> {
  * Called with the state *before* an edit is applied, so the ring always holds
  * versions the writer can go back to.
  */
-export async function maybeSnapshot(doc: AnyDoc): Promise<boolean> {
+export async function maybeSnapshot(doc: Snapshottable): Promise<boolean> {
   const existing = await listSnapshots(doc.id);
   const newest = existing[0];
   if (newest && Date.now() - newest.createdAt < SNAPSHOT_INTERVAL_MS) return false;

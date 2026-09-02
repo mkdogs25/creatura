@@ -9,7 +9,8 @@ export type SearchResultType =
   | 'note'
   | 'folder'
   | 'event'
-  | 'tag';
+  | 'tag'
+  | 'chapter';
 
 export interface SearchResult {
   id: string;
@@ -24,6 +25,7 @@ export interface SearchResult {
 const TYPE_WEIGHT: Record<SearchResultType, number> = {
   character: 6,
   location: 5,
+  chapter: 5,
   note: 4,
   event: 4,
   folder: 2,
@@ -111,6 +113,20 @@ export function searchProject(
       path: 'Timeline',
       snippet: summaryHit ? snippetAround(event.summary, q) : event.summary.slice(0, 110),
       score: (match?.score ?? 150) + TYPE_WEIGHT.event * 10,
+    });
+  }
+
+  for (const chapter of bundle.chapters) {
+    const match = fuzzyMatch(q, chapter.title);
+    const bodyIndex = chapter.excerpt.toLowerCase().indexOf(lower);
+    if (!match && bodyIndex === -1) continue;
+    results.push({
+      id: chapter.id,
+      type: 'chapter',
+      title: chapter.title,
+      path: 'Manuscript',
+      snippet: match ? chapter.excerpt.slice(0, 110) : snippetAround(chapter.excerpt, q),
+      score: (match?.score ?? 150) + TYPE_WEIGHT.chapter * 10,
     });
   }
 

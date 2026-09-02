@@ -1,6 +1,7 @@
 import type {
   AnyDoc,
   Folder,
+  ManuscriptChapter,
   MatrixCell,
   ProjectBundle,
   Relationship,
@@ -21,6 +22,20 @@ export function docById(bundle: ProjectBundle | null, id: string | null): AnyDoc
     bundle.notes.find((d) => d.id === id) ??
     null
   );
+}
+
+/** Chapters in reading order — the sidebar and the running total both rely on this. */
+export function orderedChapters(bundle: ProjectBundle | null): ManuscriptChapter[] {
+  if (!bundle) return [];
+  return [...bundle.chapters].sort((a, b) => a.order - b.order);
+}
+
+export function chapterById(
+  bundle: ProjectBundle | null,
+  id: string | null,
+): ManuscriptChapter | null {
+  if (!bundle || !id) return null;
+  return bundle.chapters.find((c) => c.id === id) ?? null;
 }
 
 /** Name for any referenced id, or null when the target no longer exists. */
@@ -188,6 +203,10 @@ export interface ProjectStats {
   relationships: number;
   povs: number;
   maps: number;
+  chapters: number;
+  /** Manuscript word count alone — the number that actually matters while drafting. */
+  manuscriptWords: number;
+  /** Manuscript plus every worldbuilding doc's words, for a whole-project total. */
   words: number;
 }
 
@@ -203,10 +222,13 @@ export function projectStats(bundle: ProjectBundle | null): ProjectStats {
       relationships: 0,
       povs: 0,
       maps: 0,
+      chapters: 0,
+      manuscriptWords: 0,
       words: 0,
     };
   }
   const docs = allDocs(bundle);
+  const manuscriptWords = bundle.chapters.reduce((sum, chapter) => sum + chapter.wordCount, 0);
   return {
     notes: bundle.notes.length,
     characters: bundle.characters.length,
@@ -217,6 +239,8 @@ export function projectStats(bundle: ProjectBundle | null): ProjectStats {
     relationships: bundle.relationships.length,
     povs: bundle.povs.length,
     maps: bundle.maps.length,
-    words: docs.reduce((sum, doc) => sum + doc.wordCount, 0),
+    chapters: bundle.chapters.length,
+    manuscriptWords,
+    words: docs.reduce((sum, doc) => sum + doc.wordCount, 0) + manuscriptWords,
   };
 }

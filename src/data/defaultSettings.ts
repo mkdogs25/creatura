@@ -39,6 +39,7 @@ export function defaultSettings(): Settings {
       rightPanelWidth: 320,
       tooltips: true,
       confirmDestructive: true,
+      showMatrixTab: false,
     },
     onboardingComplete: false,
     activeProjectId: null,

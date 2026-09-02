@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
-import { useProjectStore } from '@/store/projectStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { docById } from '@/store/selectors';
 import { buildExtensions } from '@/components/editor/extensions';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 import type { RichContent } from '@/types/domain';
@@ -16,8 +14,22 @@ const FONT_STACK: Record<string, string> = {
   mono: 'var(--font-mono)',
 };
 
+interface ManuscriptEditorProps {
+  /** Id of whatever is open — a World Library doc, or a manuscript chapter. */
+  activeId: string | null;
+  /** Reads the current content for an id from wherever the caller keeps it. */
+  getContent: (id: string) => RichContent | null;
+  /** Persists an edit. Called debounced, same as the old hardcoded behaviour. */
+  onSave: (id: string, content: RichContent) => void;
+  ariaLabel?: string;
+}
+
 /**
  * The writing surface.
+ *
+ * Shared by World Library (notes/characters/locations) and the Manuscript
+ * view (chapters) — everything about running Tiptap lives here exactly once;
+ * which entity is open and how it's persisted are supplied by the caller.
  *
  * The Tiptap instance is created once and then kept alive across document
  * switches, focus-mode toggles and panel changes — content is swapped with
@@ -25,13 +37,16 @@ const FONT_STACK: Record<string, string> = {
  * editor would cost the caret, the selection and the undo history, which is
  * the one thing a writing tool may never do.
  */
-export function ManuscriptEditor() {
-  const activeDocId = useEditorStore((s) => s.activeDocId);
+export function ManuscriptEditor({
+  activeId,
+  getContent,
+  onSave,
+  ariaLabel = 'Manuscript',
+}: ManuscriptEditorProps) {
   const setEditor = useEditorStore((s) => s.setEditor);
   const setCounts = useEditorStore((s) => s.setCounts);
   const setDirty = useEditorStore((s) => s.setDirty);
   const reloadToken = useEditorStore((s) => s.reloadToken);
-  const updateDocContent = useProjectStore((s) => s.updateDocContent);
   const editorSettings = useSettingsStore((s) => s.settings.editor);
   const writingSettings = useSettingsStore((s) => s.settings.writing);
 
@@ -42,12 +57,12 @@ export function ManuscriptEditor() {
     [writingSettings.smartQuotes, writingSettings.emDashes, writingSettings.autoCapitalize],
   );
 
-  /** The document (and revision of it) the editor's content belongs to. */
-  const loadedDocId = useRef<string | null>(null);
+  /** The entity (and revision of it) the editor's content belongs to. */
+  const loadedId = useRef<string | null>(null);
   const loadedToken = useRef(reloadToken);
 
-  const save = useDebouncedCallback((docId: string, content: RichContent) => {
-    updateDocContent(docId, content);
+  const save = useDebouncedCallback((id: string, content: RichContent) => {
+    onSave(id, content);
     setDirty(false);
   }, Math.max(200, writingSettings.autosaveDelay));
 
@@ -64,19 +79,19 @@ export function ManuscriptEditor() {
           spellcheck: String(editorSettings.spellcheck),
           role: 'textbox',
           'aria-multiline': 'true',
-          'aria-label': 'Manuscript',
+          'aria-label': ariaLabel,
         },
       },
       onUpdate: ({ editor: instance }) => {
-        const docId = loadedDocId.current;
-        if (!docId) return;
+        const id = loadedId.current;
+        if (!id) return;
         setDirty(true);
         const storage = instance.storage.characterCount as
           | { words: () => number; characters: () => number }
           | undefined;
         setCounts(storage?.words() ?? 0, storage?.characters() ?? 0);
         if (writingSettings.autosave) {
-          save.run(docId, instance.getJSON() as RichContent);
+          save.run(id, instance.getJSON() as RichContent);
         }
       },
     },
@@ -89,35 +104,36 @@ export function ManuscriptEditor() {
     return () => setEditor(null);
   }, [editor, setEditor]);
 
-  // Swap content when the open document changes, flushing the previous one
+  // Swap content when the open entity changes, flushing the previous one
   // first so an in-flight edit is never dropped on navigation.
   useEffect(() => {
     if (!editor) return;
-    if (loadedDocId.current === activeDocId && loadedToken.current === reloadToken) return;
+    if (loadedId.current === activeId && loadedToken.current === reloadToken) return;
 
-    // Only flush when leaving a document — a restore has already replaced the
+    // Only flush when leaving an entity — a restore has already replaced the
     // stored content, and re-saving the pre-restore text would undo it.
-    if (loadedDocId.current !== activeDocId) save.flush();
+    if (loadedId.current !== activeId) save.flush();
     else save.cancel();
 
-    const doc = docById(useProjectStore.getState().bundle, activeDocId);
-    loadedDocId.current = activeDocId;
+    const content = activeId ? getContent(activeId) : null;
+    loadedId.current = activeId;
     loadedToken.current = reloadToken;
 
-    if (!doc) {
+    if (!content) {
       editor.commands.clearContent(false);
       setCounts(0, 0);
       return;
     }
 
-    // `false` — do not emit an update, or the load would mark the doc dirty.
-    editor.commands.setContent(doc.content as never, false);
+    // `false` — do not emit an update, or the load would mark it dirty.
+    editor.commands.setContent(content as never, false);
     const storage = editor.storage.characterCount as
       | { words: () => number; characters: () => number }
       | undefined;
     setCounts(storage?.words() ?? 0, storage?.characters() ?? 0);
     setDirty(false);
-  }, [editor, activeDocId, reloadToken, save, setCounts, setDirty]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, activeId, reloadToken, save, setCounts, setDirty]);
 
   // Persist anything outstanding when the tab goes away.
   useEffect(() => {

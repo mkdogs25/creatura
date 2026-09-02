@@ -28,6 +28,7 @@ import { cn } from '@/utils/cn';
 export function WorldLibraryView() {
   const bundle = useProjectStore((s) => s.bundle);
   const createDoc = useProjectStore((s) => s.createDoc);
+  const updateDocContent = useProjectStore((s) => s.updateDocContent);
   const activeDocId = useEditorStore((s) => s.activeDocId);
   const setActiveDoc = useEditorStore((s) => s.setActiveDoc);
   const editor = useEditorStore((s) => s.editor);
@@ -100,7 +101,12 @@ export function WorldLibraryView() {
                 </div>
               )}
               <div className="min-h-0 flex-1">
-                <ManuscriptEditor />
+                <ManuscriptEditor
+                  activeId={activeDocId}
+                  getContent={(id) => docById(bundle, id)?.content ?? null}
+                  onSave={updateDocContent}
+                  ariaLabel="Manuscript"
+                />
               </div>
               <EditorStatusBar />
             </div>

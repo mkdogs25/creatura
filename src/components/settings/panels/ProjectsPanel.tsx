@@ -37,6 +37,8 @@ export function ProjectsPanel() {
   const { project } = bundle;
 
   const rows: Array<[string, string]> = [
+    ['Chapters', formatNumber(stats.chapters)],
+    ['Manuscript words', formatNumber(stats.manuscriptWords)],
     ['Notes', formatNumber(stats.notes)],
     ['Characters', formatNumber(stats.characters)],
     ['Locations', formatNumber(stats.locations)],
@@ -46,7 +48,7 @@ export function ProjectsPanel() {
     ['Relationships', formatNumber(stats.relationships)],
     ['Tags', formatNumber(stats.tags)],
     ['Maps', formatNumber(stats.maps)],
-    ['Words', formatNumber(stats.words)],
+    ['Total words', formatNumber(stats.words)],
   ];
 
   return (

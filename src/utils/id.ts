@@ -14,6 +14,7 @@ const PREFIX: Record<EntityKind, string> = {
   section: 'section',
   project: 'project',
   cell: 'cell',
+  chapter: 'chapter',
 };
 
 const KIND_BY_PREFIX = Object.fromEntries(

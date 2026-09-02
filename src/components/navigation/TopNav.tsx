@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
+import { useMemo } from 'react';
 import {
   BookOpen,
+  BookText,
   CalendarPlus,
   FilePlus2,
   FileUp,
@@ -30,11 +32,13 @@ import { MenuHost, type MenuEntry } from '@/components/ui/Menu';
 import { cn } from '@/utils/cn';
 import type { ViewId } from '@/types/domain';
 
-const VIEWS: Array<{ id: ViewId; label: string; icon: typeof BookOpen }> = [
+const BASE_VIEWS: Array<{ id: ViewId; label: string; icon: typeof BookOpen }> = [
   { id: 'library', label: 'World Library', icon: BookOpen },
   { id: 'timeline', label: 'Timeline Mapper', icon: Timer },
-  { id: 'matrix', label: 'Matrix View', icon: Grid3x3 },
+  { id: 'manuscript', label: 'Manuscript', icon: BookText },
 ];
+
+const MATRIX_VIEW = { id: 'matrix' as ViewId, label: 'Matrix View', icon: Grid3x3 };
 
 const THEME_ICON = { dark: Moon, light: Sun, system: Monitor };
 
@@ -46,12 +50,17 @@ export function TopNav() {
   const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel);
   const isNarrow = useUiStore((s) => s.isNarrow);
   const theme = useSettingsStore((s) => s.settings.appearance.theme);
+  const showMatrixTab = useSettingsStore((s) => s.settings.interface.showMatrixTab);
   const actions = useProjectActions();
 
   const createRef = useRef<HTMLButtonElement>(null);
   const [createAnchor, setCreateAnchor] = useState<DOMRect | null>(null);
 
   const ThemeIcon = THEME_ICON[theme];
+  const views = useMemo(
+    () => (showMatrixTab ? [...BASE_VIEWS, MATRIX_VIEW] : BASE_VIEWS),
+    [showMatrixTab],
+  );
 
   const createEntries: MenuEntry[] = [
     { id: 'h', heading: 'Create' },
@@ -73,6 +82,12 @@ export function TopNav() {
       label: 'Timeline Event',
       icon: CalendarPlus,
       onSelect: actions.createEvent,
+    },
+    {
+      id: 'chapter',
+      label: 'Chapter',
+      icon: BookText,
+      onSelect: actions.createChapter,
     },
     { id: 'folder', label: 'Folder', icon: FolderPlus, onSelect: actions.createFolder },
     { id: 'tag', label: 'Tag', icon: TagIcon, onSelect: actions.createTag },
@@ -115,7 +130,7 @@ export function TopNav() {
         aria-label="Primary views"
         className="mx-auto flex items-center gap-0.5 rounded-[var(--radius-control)] bg-[var(--color-surface-sunken)] p-0.5"
       >
-        {VIEWS.map((item) => {
+        {views.map((item) => {
           const Icon = item.icon;
           const active = view === item.id;
           return (
