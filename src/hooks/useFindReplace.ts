@@ -21,6 +21,7 @@ export interface UseFindReplace {
   prev: () => void;
   replaceCurrent: () => void;
   replaceAll: () => void;
+  deleteAll: () => void;
 }
 
 /**
@@ -145,6 +146,23 @@ export function useFindReplace(editor: Editor | null): UseFindReplace {
     recompute();
   }, [editor, matches, replacement, recompute]);
 
+  /**
+   * Removes every match outright — a bulk delete, independent of whatever
+   * (if anything) is typed in the Replace field. One click instead of
+   * clearing Replace and hitting "Replace all" to get the same result.
+   */
+  const deleteAll = useCallback(() => {
+    if (!editor || matches.length === 0) return;
+    const tr = editor.state.tr;
+    const ordered = [...matches].sort((a, b) => b.from - a.from);
+    for (const match of ordered) {
+      tr.delete(match.from, match.to);
+    }
+    editor.view.dispatch(tr);
+    editor.commands.focus();
+    recompute();
+  }, [editor, matches, recompute]);
+
   return useMemo(
     () => ({
       query,
@@ -159,6 +177,7 @@ export function useFindReplace(editor: Editor | null): UseFindReplace {
       prev,
       replaceCurrent,
       replaceAll,
+      deleteAll,
     }),
     [
       query,
@@ -171,6 +190,7 @@ export function useFindReplace(editor: Editor | null): UseFindReplace {
       prev,
       replaceCurrent,
       replaceAll,
+      deleteAll,
     ],
   );
 }

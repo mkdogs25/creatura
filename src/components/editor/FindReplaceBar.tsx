@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { CaseSensitive, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { CaseSensitive, ChevronDown, ChevronUp, Trash2, X } from 'lucide-react';
 import { useEditorStore } from '@/store/editorStore';
 import { useFindReplace } from '@/hooks/useFindReplace';
 import { Button } from '@/components/ui/Button';
@@ -29,6 +29,7 @@ export function FindReplaceBar() {
     prev,
     replaceCurrent,
     replaceAll,
+    deleteAll,
   } = useFindReplace(open ? editor : null);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -128,6 +129,18 @@ export function FindReplaceBar() {
         <Button variant="secondary" size="sm" onClick={replaceAll} disabled={count === 0}>
           Replace all
         </Button>
+        <Tooltip label="Delete every match, ignoring the Replace field">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Delete all matches"
+            onClick={deleteAll}
+            disabled={count === 0}
+            className="text-[var(--color-danger)] hover:bg-[color-mix(in_oklab,var(--color-danger)_12%,transparent)]"
+          >
+            <Trash2 size={14} />
+          </Button>
+        </Tooltip>
       </div>
     </div>
   );
