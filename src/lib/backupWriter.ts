@@ -1,4 +1,4 @@
-import type { AnyDoc, Folder, MapMarker, ProjectBundle } from '@/types/domain';
+import type { AnyDoc, Folder, ProjectBundle } from '@/types/domain';
 import { docToMarkdown } from '@/utils/markdownExport';
 import { mapToSvg } from '@/lib/mapToSvg';
 
@@ -146,12 +146,18 @@ export async function writeProjectBackup(
 
   if (bundle.maps.length > 0) {
     const mapsDir = await projectDir.getDirectoryHandle('Maps', { create: true });
-    const markersByMap = new Map<string, MapMarker[]>();
-    for (const marker of bundle.markers) {
-      const list = markersByMap.get(marker.mapId) ?? [];
-      list.push(marker);
-      markersByMap.set(marker.mapId, list);
-    }
+    const groupByMap = <T extends { mapId: string }>(rows: T[]): Map<string, T[]> => {
+      const grouped = new Map<string, T[]>();
+      for (const row of rows) {
+        const list = grouped.get(row.mapId) ?? [];
+        list.push(row);
+        grouped.set(row.mapId, list);
+      }
+      return grouped;
+    };
+    const markersByMap = groupByMap(bundle.markers);
+    const terrainByMap = groupByMap(bundle.terrain);
+    const stampsByMap = groupByMap(bundle.stamps);
     const locationNameById = new Map(bundle.locations.map((loc) => [loc.id, loc.name]));
     for (const map of bundle.maps) {
       const markers = markersByMap.get(map.id) ?? [];
@@ -162,6 +168,8 @@ export async function writeProjectBackup(
           marker.label ||
           (marker.locationId && locationNameById.get(marker.locationId)) ||
           'Marker',
+        terrainByMap.get(map.id) ?? [],
+        stampsByMap.get(map.id) ?? [],
       );
       const filename = uniqueName(mapsDir, sanitizeFilename(map.name), '.svg');
       await writeTextFile(mapsDir, filename, svg);

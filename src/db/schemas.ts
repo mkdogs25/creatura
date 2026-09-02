@@ -171,6 +171,35 @@ export const matrixCellSchema = z.object({
   updatedAt: timestamp.catch(() => Date.now()),
 });
 
+export const terrainStrokeSchema = z.object({
+  id: id,
+  projectId: id,
+  mapId: id,
+  terrain: z
+    .enum(['grass', 'forest', 'water', 'mountain', 'hills', 'sand', 'snow', 'swamp'])
+    .catch('grass'),
+  points: z
+    .array(z.object({ x: z.number().finite(), y: z.number().finite() }))
+    .catch([]),
+  brushSize: z.number().positive().catch(24),
+  order: z.number().catch(0),
+  createdAt: timestamp.catch(() => Date.now()),
+  updatedAt: timestamp.catch(() => Date.now()),
+});
+
+export const mapStampSchema = z.object({
+  id: id,
+  projectId: id,
+  mapId: id,
+  icon: z.string().catch('tree'),
+  x: z.number().finite().catch(0),
+  y: z.number().finite().catch(0),
+  rotation: z.number().finite().catch(0),
+  scale: z.number().positive().catch(1),
+  color: z.string().catch('#4F7942'),
+  order: z.number().catch(0),
+});
+
 export const chapterSchema = z.object({
   id: id,
   projectId: id,
@@ -307,6 +336,8 @@ export const projectExportSchema = z.object({
   markers: z.array(markerSchema).catch([]),
   cells: z.array(matrixCellSchema).catch([]),
   chapters: z.array(chapterSchema).catch([]),
+  terrain: z.array(terrainStrokeSchema).catch([]),
+  stamps: z.array(mapStampSchema).catch([]),
 });
 
 /**

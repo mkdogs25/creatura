@@ -7,6 +7,8 @@ import type {
   LocationDoc,
   ManuscriptChapter,
   MapMarker,
+  MapStamp,
+  MapTerrainStroke,
   MatrixCell,
   NoteDoc,
   PointOfView,
@@ -19,6 +21,7 @@ import type {
   StoryMap,
   Tag,
   TemplateId,
+  TerrainKind,
   TimelineEvent,
   TimelineSection,
 } from '@/types/domain';
@@ -133,6 +136,14 @@ interface ProjectState {
   createMarker: (input: Partial<MapMarker> & { mapId: string; x: number; y: number }) => string;
   updateMarker: (id: string, patch: Partial<MapMarker>) => void;
   deleteMarker: (id: string) => void;
+  createTerrainStroke: (
+    input: Partial<MapTerrainStroke> & { mapId: string; terrain: TerrainKind; points: Array<{ x: number; y: number }> },
+  ) => string;
+  updateTerrainStroke: (id: string, patch: Partial<MapTerrainStroke>) => void;
+  deleteTerrainStroke: (id: string) => void;
+  createStamp: (input: Partial<MapStamp> & { mapId: string; icon: string; x: number; y: number }) => string;
+  updateStamp: (id: string, patch: Partial<MapStamp>) => void;
+  deleteStamp: (id: string) => void;
 
   // ── matrix ─────────────────────────────────────────────────────────────
   upsertCell: (characterId: string, locationId: string, patch: Partial<MatrixCell>) => void;
@@ -328,6 +339,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       source.markers.forEach((m) => register(m.id));
       source.cells.forEach((c) => register(c.id));
       source.chapters.forEach((c) => register(c.id));
+      source.terrain.forEach((t) => register(t.id));
+      source.stamps.forEach((s) => register(s.id));
 
       const now = Date.now();
       const projectId2 = newId('project');
@@ -409,6 +422,18 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           id: remap(c.id),
           projectId: projectId2,
           content: remapContentReferences(c.content, remap),
+        })),
+        terrain: source.terrain.map((t) => ({
+          ...t,
+          id: remap(t.id),
+          projectId: projectId2,
+          mapId: remap(t.mapId),
+        })),
+        stamps: source.stamps.map((s) => ({
+          ...s,
+          id: remap(s.id),
+          projectId: projectId2,
+          mapId: remap(s.mapId),
         })),
       };
 
@@ -1093,18 +1118,24 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const bundle = get().bundle;
       if (!bundle) return;
       const markerIds = bundle.markers.filter((m) => m.mapId === id).map((m) => m.id);
+      const terrainIds = bundle.terrain.filter((t) => t.mapId === id).map((t) => t.id);
+      const stampIds = bundle.stamps.filter((s) => s.mapId === id).map((s) => s.id);
       const detached = bundle.locations.filter((l) => l.mapId === id);
       set((state) =>
         patchBundle(state, (b) => ({
           ...b,
           maps: b.maps.filter((m) => m.id !== id),
           markers: b.markers.filter((m) => m.mapId !== id),
+          terrain: b.terrain.filter((t) => t.mapId !== id),
+          stamps: b.stamps.filter((s) => s.mapId !== id),
           locations: b.locations.map((l) => (l.mapId === id ? { ...l, mapId: null } : l)),
         })),
       );
       write(async () => {
         await deleteRecord('maps', id);
         await deleteRecords('markers', markerIds);
+        await deleteRecords('terrain', terrainIds);
+        await deleteRecords('stamps', stampIds);
         await Promise.all(detached.map((l) => putDoc({ ...l, mapId: null })));
       });
     },
@@ -1148,6 +1179,90 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         patchBundle(state, (b) => ({ ...b, markers: b.markers.filter((m) => m.id !== id) })),
       );
       write(() => deleteRecord('markers', id));
+    },
+
+    createTerrainStroke: (input) => {
+      const bundle = get().bundle;
+      if (!bundle) return '';
+      const now = Date.now();
+      const onMap = bundle.terrain.filter((t) => t.mapId === input.mapId);
+      const stroke: MapTerrainStroke = {
+        id: newId('terrainStroke'),
+        projectId: bundle.project.id,
+        mapId: input.mapId,
+        terrain: input.terrain,
+        points: input.points,
+        brushSize: input.brushSize ?? 24,
+        // Painted last, so it renders over anything already on this map.
+        order: input.order ?? onMap.length,
+        createdAt: now,
+        updatedAt: now,
+      };
+      set((state) => patchBundle(state, (b) => ({ ...b, terrain: [...b.terrain, stroke] })));
+      write(() => putRecord('terrain', stroke));
+      return stroke.id;
+    },
+
+    updateTerrainStroke: (id, patch) => {
+      const bundle = get().bundle;
+      if (!bundle) return;
+      const current = bundle.terrain.find((t) => t.id === id);
+      if (!current) return;
+      const next = { ...current, ...patch, updatedAt: Date.now() };
+      set((state) =>
+        patchBundle(state, (b) => ({
+          ...b,
+          terrain: b.terrain.map((t) => (t.id === id ? next : t)),
+        })),
+      );
+      write(() => putRecord('terrain', next));
+    },
+
+    deleteTerrainStroke: (id) => {
+      set((state) =>
+        patchBundle(state, (b) => ({ ...b, terrain: b.terrain.filter((t) => t.id !== id) })),
+      );
+      write(() => deleteRecord('terrain', id));
+    },
+
+    createStamp: (input) => {
+      const bundle = get().bundle;
+      if (!bundle) return '';
+      const onMap = bundle.stamps.filter((s) => s.mapId === input.mapId);
+      const stamp: MapStamp = {
+        id: newId('stamp'),
+        projectId: bundle.project.id,
+        mapId: input.mapId,
+        icon: input.icon,
+        x: input.x,
+        y: input.y,
+        rotation: input.rotation ?? 0,
+        scale: input.scale ?? 1,
+        color: input.color ?? '#4F7942',
+        order: input.order ?? onMap.length,
+      };
+      set((state) => patchBundle(state, (b) => ({ ...b, stamps: [...b.stamps, stamp] })));
+      write(() => putRecord('stamps', stamp));
+      return stamp.id;
+    },
+
+    updateStamp: (id, patch) => {
+      const bundle = get().bundle;
+      if (!bundle) return;
+      const current = bundle.stamps.find((s) => s.id === id);
+      if (!current) return;
+      const next = { ...current, ...patch };
+      set((state) =>
+        patchBundle(state, (b) => ({ ...b, stamps: b.stamps.map((s) => (s.id === id ? next : s)) })),
+      );
+      write(() => putRecord('stamps', next));
+    },
+
+    deleteStamp: (id) => {
+      set((state) =>
+        patchBundle(state, (b) => ({ ...b, stamps: b.stamps.filter((s) => s.id !== id) })),
+      );
+      write(() => deleteRecord('stamps', id));
     },
 
     // ── matrix ───────────────────────────────────────────────────────────

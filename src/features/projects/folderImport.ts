@@ -118,5 +118,7 @@ export function buildProjectFromFolder(
     markers: [],
     cells: [],
     chapters: [],
+    terrain: [],
+    stamps: [],
   };
 }

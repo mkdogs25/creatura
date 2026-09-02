@@ -3,6 +3,8 @@ import type {
   LocationDoc,
   ManuscriptChapter,
   MapMarker,
+  MapStamp,
+  MapTerrainStroke,
   MatrixCell,
   NoteDoc,
   PointOfView,
@@ -692,6 +694,113 @@ export function buildDemoProject(): ProjectBundle {
     updatedAt: now,
   }));
 
+  // A few painted strokes and stamps so the map builder shows what it can
+  // do the moment someone opens the demo, not just an empty canvas.
+  const terrain: MapTerrainStroke[] = [
+    {
+      id: newId('terrainStroke'),
+      projectId: project.id,
+      mapId: map.id,
+      terrain: 'water',
+      points: [
+        { x: 0, y: 780 },
+        { x: 220, y: 740 },
+        { x: 460, y: 770 },
+        { x: 720, y: 730 },
+        { x: 980, y: 760 },
+        { x: 1250, y: 720 },
+        { x: 1400, y: 750 },
+      ],
+      brushSize: 140,
+      order: 0,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: newId('terrainStroke'),
+      projectId: project.id,
+      mapId: map.id,
+      terrain: 'forest',
+      points: [
+        { x: 260, y: 260 },
+        { x: 340, y: 220 },
+        { x: 420, y: 250 },
+        { x: 380, y: 340 },
+        { x: 280, y: 350 },
+      ],
+      brushSize: 90,
+      order: 1,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: newId('terrainStroke'),
+      projectId: project.id,
+      mapId: map.id,
+      terrain: 'mountain',
+      points: [
+        { x: 980, y: 200 },
+        { x: 1080, y: 170 },
+        { x: 1180, y: 210 },
+      ],
+      brushSize: 100,
+      order: 2,
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+
+  const stamps: MapStamp[] = [
+    {
+      id: newId('stamp'),
+      projectId: project.id,
+      mapId: map.id,
+      icon: 'tree',
+      x: 300,
+      y: 280,
+      rotation: 0,
+      scale: 1,
+      color: '#3E6B37',
+      order: 0,
+    },
+    {
+      id: newId('stamp'),
+      projectId: project.id,
+      mapId: map.id,
+      icon: 'pine',
+      x: 360,
+      y: 300,
+      rotation: 0,
+      scale: 1.1,
+      color: '#2F5A32',
+      order: 1,
+    },
+    {
+      id: newId('stamp'),
+      projectId: project.id,
+      mapId: map.id,
+      icon: 'ship',
+      x: 620,
+      y: 760,
+      rotation: -8,
+      scale: 1,
+      color: '#5A4632',
+      order: 2,
+    },
+    {
+      id: newId('stamp'),
+      projectId: project.id,
+      mapId: map.id,
+      icon: 'ruins',
+      x: 1080,
+      y: 320,
+      rotation: 0,
+      scale: 1,
+      color: '#8B8378',
+      order: 3,
+    },
+  ];
+
   return {
     project,
     folders,
@@ -707,5 +816,7 @@ export function buildDemoProject(): ProjectBundle {
     markers,
     cells,
     chapters,
+    terrain,
+    stamps,
   };
 }

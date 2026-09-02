@@ -6,6 +6,7 @@ import {
   folderSchema,
   locationSchema,
   mapSchema,
+  mapStampSchema,
   markerSchema,
   matrixCellSchema,
   noteSchema,
@@ -16,6 +17,7 @@ import {
   sectionSchema,
   settingsSchema,
   tagSchema,
+  terrainStrokeSchema,
 } from '@/db/schemas';
 import type {
   CharacterDoc,
@@ -62,6 +64,8 @@ export async function loadProjectBundle(projectId: string): Promise<ProjectBundl
     markers,
     cells,
     chapters,
+    terrain,
+    stamps,
   ] = await Promise.all([
     where(db.folders),
     where(db.characters),
@@ -76,6 +80,8 @@ export async function loadProjectBundle(projectId: string): Promise<ProjectBundl
     where(db.markers),
     where(db.cells),
     where(db.chapters),
+    where(db.terrain),
+    where(db.stamps),
   ]);
 
   return {
@@ -93,6 +99,8 @@ export async function loadProjectBundle(projectId: string): Promise<ProjectBundl
     markers: parseAll(markerSchema, markers, 'marker'),
     cells: parseAll(matrixCellSchema, cells, 'matrix cell'),
     chapters: parseAll(chapterSchema, chapters, 'chapter'),
+    terrain: parseAll(terrainStrokeSchema, terrain, 'terrain stroke'),
+    stamps: parseAll(mapStampSchema, stamps, 'stamp'),
   };
 }
 
@@ -116,6 +124,8 @@ export async function saveProjectBundle(bundle: ProjectBundle): Promise<void> {
       await db.markers.bulkPut(bundle.markers);
       await db.cells.bulkPut(bundle.cells);
       await db.chapters.bulkPut(bundle.chapters);
+      await db.terrain.bulkPut(bundle.terrain);
+      await db.stamps.bulkPut(bundle.stamps);
     },
   );
 }

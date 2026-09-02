@@ -31,6 +31,8 @@ export function bundleToExport(bundle: ProjectBundle): ProjectExport {
     markers: bundle.markers,
     cells: bundle.cells,
     chapters: bundle.chapters,
+    terrain: bundle.terrain,
+    stamps: bundle.stamps,
   };
 }
 
@@ -144,6 +146,8 @@ export function parseProjectFile(text: string): ImportResult {
   const markers = dedupe(data.markers);
   const cells = dedupe(data.cells);
   const chapters = dedupe(data.chapters);
+  const terrain = dedupe(data.terrain);
+  const stamps = dedupe(data.stamps);
 
   /** Resolves an old id, or null when the file never contained the target. */
   const ref = (oldId: string | null | undefined): string | null =>
@@ -242,6 +246,16 @@ export function parseProjectFile(text: string): ImportResult {
       ...chapter,
       content: remapContent(chapter.content) as RichContent,
     })),
+    terrain: terrain.flatMap((stroke) => {
+      const mapId = ref(stroke.mapId);
+      if (!mapId) return [];
+      return [{ ...stroke, mapId }];
+    }),
+    stamps: stamps.flatMap((stamp) => {
+      const mapId = ref(stamp.mapId);
+      if (!mapId) return [];
+      return [{ ...stamp, mapId }];
+    }),
   };
 
   return { ok: true, bundle, warnings: [...new Set(warnings)] };

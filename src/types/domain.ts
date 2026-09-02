@@ -30,7 +30,9 @@ export type EntityKind =
   | 'section'
   | 'project'
   | 'cell'
-  | 'chapter';
+  | 'chapter'
+  | 'terrainStroke'
+  | 'stamp';
 
 /** Tiptap JSON — kept structurally loose so stored docs never fail to load. */
 export interface RichContent {
@@ -201,6 +203,61 @@ export interface MapMarker {
   color: string;
 }
 
+/** The palette of biomes a terrain brush can paint — see `data/terrainTypes.ts` for color/label. */
+export type TerrainKind =
+  | 'grass'
+  | 'forest'
+  | 'water'
+  | 'mountain'
+  | 'hills'
+  | 'sand'
+  | 'snow'
+  | 'swamp';
+
+/**
+ * One freehand brush stroke, painted onto the map as terrain.
+ *
+ * Stored as its raw path (the pointer's positions while the button was
+ * held) rather than a filled polygon, and rendered as a thick, round-capped
+ * stroke — vector data that stays a single selectable, movable, resizable,
+ * recolorable object, while still reading as a painted swath once several
+ * overlap. `order` decides paint order among strokes on the same map, so a
+ * later stroke can cover an earlier one the way a real brush would.
+ */
+export interface MapTerrainStroke {
+  id: string;
+  projectId: string;
+  mapId: string;
+  terrain: TerrainKind;
+  /** Map-space points the brush passed through, in order. */
+  points: Array<{ x: number; y: number }>;
+  /** Stroke width in map units. */
+  brushSize: number;
+  order: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * A decorative scenery icon placed on the map — a tree, a ruin, a ship —
+ * distinct from a `MapMarker`: a stamp carries no link to a Location and
+ * exists purely as art direction for the drawn map, layered above terrain.
+ */
+export interface MapStamp {
+  id: string;
+  projectId: string;
+  mapId: string;
+  /** Id into the built-in icon set — see `data/mapIcons.ts`. */
+  icon: string;
+  x: number;
+  y: number;
+  rotation: number;
+  /** Multiplier on the icon's base size. */
+  scale: number;
+  color: string;
+  order: number;
+}
+
 /**
  * A user-authored annotation on one Character × Location intersection.
  * Everything else shown in a matrix cell is derived from live project data;
@@ -335,6 +392,8 @@ export interface ProjectExport {
   markers: MapMarker[];
   cells: MatrixCell[];
   chapters: ManuscriptChapter[];
+  terrain: MapTerrainStroke[];
+  stamps: MapStamp[];
 }
 
 /** Everything belonging to one project, as held in memory by the store. */
@@ -353,6 +412,8 @@ export interface ProjectBundle {
   markers: MapMarker[];
   cells: MatrixCell[];
   chapters: ManuscriptChapter[];
+  terrain: MapTerrainStroke[];
+  stamps: MapStamp[];
 }
 
 /**

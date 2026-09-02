@@ -139,6 +139,8 @@ export function emptyBundle(project: Project, folders: Folder[]): ProjectBundle 
     markers: [],
     cells: [],
     chapters: [],
+    terrain: [],
+    stamps: [],
   };
 }
 

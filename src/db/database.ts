@@ -7,6 +7,8 @@ import type {
   LocationDoc,
   ManuscriptChapter,
   MapMarker,
+  MapStamp,
+  MapTerrainStroke,
   MatrixCell,
   NoteDoc,
   PointOfView,
@@ -58,6 +60,8 @@ export class CreaturaDatabase extends Dexie {
   settings!: Table<Settings, string>;
   snapshots!: Table<DocSnapshot, string>;
   chapters!: Table<ManuscriptChapter, string>;
+  terrain!: Table<MapTerrainStroke, string>;
+  stamps!: Table<MapStamp, string>;
   device!: Table<DeviceRecord, string>;
 
   constructor() {
@@ -84,6 +88,8 @@ export const PROJECT_TABLES = [
   'markers',
   'cells',
   'chapters',
+  'terrain',
+  'stamps',
 ] as const;
 
 export type ProjectTableName = (typeof PROJECT_TABLES)[number];

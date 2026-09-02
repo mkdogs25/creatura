@@ -42,4 +42,10 @@ export function applyMigrations(db: Dexie): void {
   db.version(4).stores({
     device: 'id',
   });
+
+  // v5 — painted terrain strokes and decorative stamps on maps.
+  db.version(5).stores({
+    terrain: 'id, projectId, mapId, order',
+    stamps: 'id, projectId, mapId, order',
+  });
 }

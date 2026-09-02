@@ -3,11 +3,15 @@ import {
   ImageIcon,
   Link2,
   Link2Off,
-  Maximize2,
   MapPin,
+  Maximize2,
   Minus,
+  MousePointer2,
+  Paintbrush,
   Plus,
+  Sparkles,
   Trash2,
+  Undo2,
 } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { useUiStore } from '@/store/uiStore';
@@ -18,7 +22,11 @@ import { Tooltip } from '@/components/ui/Tooltip';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { pickImageAsDataUrl } from '@/utils/download';
 import { clamp } from '@/utils/time';
-import type { MapMarker } from '@/types/domain';
+import { cn } from '@/utils/cn';
+import { TERRAIN_TYPES, terrainColor } from '@/data/terrainTypes';
+import { MAP_ICONS, mapIconById, type MapIconCategory } from '@/data/mapIcons';
+import { MapIconGlyph } from '@/components/map/MapIconGlyph';
+import type { MapMarker, MapStamp, MapTerrainStroke, TerrainKind } from '@/types/domain';
 
 interface Viewport {
   x: number;
@@ -26,12 +34,22 @@ interface Viewport {
   scale: number;
 }
 
+type Tool = 'pan' | 'marker' | 'terrain' | 'stamp';
+type Selection = { kind: 'marker' | 'terrain' | 'stamp'; id: string } | null;
+
+const STAMP_COLORS = ['#4F7942', '#8B8378', '#5B8FB0', '#A9A374', '#7A5C3E', '#6B6E7A'];
+
+/** Distance (map units) a point must move before it's added to the live stroke. */
+const MIN_POINT_SPACING = 4;
+
 /**
  * The map workspace.
  *
- * Markers are records that point at canonical Location documents, so opening
- * one lands in the same entry the library and timeline use — the map is a
- * second view of the world, not a second copy of it.
+ * Three kinds of content share one canvas: markers (records that point at
+ * canonical Location documents — the map is a second view of the world, not
+ * a second copy of it), painted terrain strokes, and decorative stamps.
+ * Terrain paints first, stamps sit on top of it, and markers stay on top of
+ * everything since they're the interactive, functional layer.
  */
 export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null }) {
   const bundle = useProjectStore((s) => s.bundle);
@@ -40,6 +58,12 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
   const createMarker = useProjectStore((s) => s.createMarker);
   const updateMarker = useProjectStore((s) => s.updateMarker);
   const deleteMarker = useProjectStore((s) => s.deleteMarker);
+  const createTerrainStroke = useProjectStore((s) => s.createTerrainStroke);
+  const updateTerrainStroke = useProjectStore((s) => s.updateTerrainStroke);
+  const deleteTerrainStroke = useProjectStore((s) => s.deleteTerrainStroke);
+  const createStamp = useProjectStore((s) => s.createStamp);
+  const updateStamp = useProjectStore((s) => s.updateStamp);
+  const deleteStamp = useProjectStore((s) => s.deleteStamp);
   const confirm = useUiStore((s) => s.confirm);
   const { openEntity } = useNavigation();
 
@@ -50,20 +74,69 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
   const map = maps.find((m) => m.id === selectedMapId) ?? maps[0] ?? null;
 
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, scale: 0.7 });
-  const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
-  const [placing, setPlacing] = useState(false);
+  const [tool, setTool] = useState<Tool>('pan');
+  const [selection, setSelection] = useState<Selection>(null);
+  const [activeTerrain, setActiveTerrain] = useState<TerrainKind>('grass');
+  const [brushSize, setBrushSize] = useState(24);
+  const [activeIcon, setActiveIcon] = useState('tree');
+  const [activeStampColor, setActiveStampColor] = useState(STAMP_COLORS[0]);
+  const [livePoints, setLivePoints] = useState<Array<{ x: number; y: number }> | null>(null);
+
   const svgRef = useRef<SVGSVGElement>(null);
   const panState = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null);
-  const dragState = useRef<{ pointerId: number; markerId: string } | null>(null);
+  const dragState = useRef<{ pointerId: number; kind: 'marker' | 'stamp'; id: string } | null>(null);
+  const terrainDragState = useRef<{
+    pointerId: number;
+    id: string;
+    startX: number;
+    startY: number;
+    original: Array<{ x: number; y: number }>;
+  } | null>(null);
+  const paintingRef = useRef<{ pointerId: number; points: Array<{ x: number; y: number }> } | null>(null);
+  const undoStack = useRef<Array<{ kind: 'terrain' | 'stamp'; id: string }>>([]);
+  const [, forceUndoRerender] = useState(0);
 
   const markers = useMemo(
     () => (map ? (bundle?.markers ?? []).filter((marker) => marker.mapId === map.id) : []),
     [bundle?.markers, map],
   );
+  const terrainStrokes = useMemo(
+    () =>
+      map
+        ? (bundle?.terrain ?? []).filter((t) => t.mapId === map.id).sort((a, b) => a.order - b.order)
+        : [],
+    [bundle?.terrain, map],
+  );
+  const stamps = useMemo(
+    () =>
+      map
+        ? (bundle?.stamps ?? []).filter((s) => s.mapId === map.id).sort((a, b) => a.order - b.order)
+        : [],
+    [bundle?.stamps, map],
+  );
 
   useEffect(() => {
     if (requestedMapId) setSelectedMapId(requestedMapId);
   }, [requestedMapId]);
+
+  // Switching maps always clears whatever was selected/mid-stroke. Tool
+  // changes are deliberately *not* watched here — placing a marker or
+  // stamp switches back to the pan tool as part of selecting what it just
+  // created, and an effect keyed on `tool` would immediately clobber that
+  // selection in the next render. Toolbar buttons that change tools clear
+  // the selection themselves instead, where that's actually wanted.
+  useEffect(() => {
+    setSelection(null);
+    paintingRef.current = null;
+    setLivePoints(null);
+  }, [map?.id]);
+
+  const chooseTool = useCallback((next: Tool) => {
+    setTool(next);
+    setSelection(null);
+    paintingRef.current = null;
+    setLivePoints(null);
+  }, []);
 
   /** Converts a pointer event to map-space coordinates. */
   const toMapSpace = useCallback(
@@ -85,7 +158,6 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
       if (!rect) return { ...current, scale };
       const cx = originX ?? rect.width / 2;
       const cy = originY ?? rect.height / 2;
-      // Keep the point under the cursor fixed while zooming.
       const ratio = scale / current.scale;
       return {
         scale,
@@ -107,10 +179,23 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
   }, [map]);
 
   useEffect(() => {
-    // Fit once a map is available and the SVG has laid out.
     const frame = requestAnimationFrame(fitToView);
     return () => cancelAnimationFrame(frame);
   }, [fitToView, map?.id]);
+
+  const pushUndo = useCallback((entry: { kind: 'terrain' | 'stamp'; id: string }) => {
+    undoStack.current.push(entry);
+    forceUndoRerender((n) => n + 1);
+  }, []);
+
+  const undoLast = useCallback(() => {
+    const entry = undoStack.current.pop();
+    if (!entry) return;
+    if (entry.kind === 'terrain') deleteTerrainStroke(entry.id);
+    else deleteStamp(entry.id);
+    setSelection((current) => (current?.id === entry.id ? null : current));
+    forceUndoRerender((n) => n + 1);
+  }, [deleteTerrainStroke, deleteStamp]);
 
   if (!bundle) return null;
 
@@ -119,7 +204,7 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
       <EmptyState
         icon={MapPin}
         title="No map yet."
-        body="Draw the shape of your world. Markers you place link straight to the locations already in your library."
+        body="Draw the shape of your world — paint terrain, drop scenery, and place markers that link straight to the locations already in your library."
       >
         <Button
           variant="primary"
@@ -132,7 +217,13 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
     );
   }
 
-  const activeMarker = markers.find((marker) => marker.id === activeMarkerId) ?? null;
+  const activeMarker = selection?.kind === 'marker' ? markers.find((m) => m.id === selection.id) ?? null : null;
+  const activeTerrainStroke =
+    selection?.kind === 'terrain' ? terrainStrokes.find((t) => t.id === selection.id) ?? null : null;
+  const activeStamp = selection?.kind === 'stamp' ? stamps.find((s) => s.id === selection.id) ?? null : null;
+
+  const cursor =
+    tool === 'terrain' || tool === 'stamp' || tool === 'marker' ? 'cursor-crosshair' : 'cursor-grab';
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -150,15 +241,52 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
           ))}
         </Select>
 
-        <Button
-          variant={placing ? 'primary' : 'secondary'}
-          size="sm"
-          onClick={() => setPlacing((value) => !value)}
-          aria-pressed={placing}
-        >
-          <MapPin size={13} />
-          {placing ? 'Click the map…' : 'Add marker'}
-        </Button>
+        <div className="flex items-center gap-0.5 rounded-[var(--radius-control)] border border-[var(--color-line)] p-0.5">
+          <Tooltip label="Select & pan">
+            <Button
+              variant={tool === 'pan' ? 'primary' : 'ghost'}
+              size="icon-sm"
+              aria-label="Select and pan"
+              aria-pressed={tool === 'pan'}
+              onClick={() => chooseTool('pan')}
+            >
+              <MousePointer2 size={13} />
+            </Button>
+          </Tooltip>
+          <Tooltip label="Add marker">
+            <Button
+              variant={tool === 'marker' ? 'primary' : 'ghost'}
+              size="icon-sm"
+              aria-label="Add marker"
+              aria-pressed={tool === 'marker'}
+              onClick={() => chooseTool('marker')}
+            >
+              <MapPin size={13} />
+            </Button>
+          </Tooltip>
+          <Tooltip label="Paint terrain">
+            <Button
+              variant={tool === 'terrain' ? 'primary' : 'ghost'}
+              size="icon-sm"
+              aria-label="Paint terrain"
+              aria-pressed={tool === 'terrain'}
+              onClick={() => chooseTool('terrain')}
+            >
+              <Paintbrush size={13} />
+            </Button>
+          </Tooltip>
+          <Tooltip label="Place stamps">
+            <Button
+              variant={tool === 'stamp' ? 'primary' : 'ghost'}
+              size="icon-sm"
+              aria-label="Place stamps"
+              aria-pressed={tool === 'stamp'}
+              onClick={() => chooseTool('stamp')}
+            >
+              <Sparkles size={13} />
+            </Button>
+          </Tooltip>
+        </div>
 
         <div className="ml-auto flex items-center gap-1">
           <Tooltip label="Zoom out">
@@ -199,12 +327,121 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
         </div>
       </header>
 
+      {tool === 'terrain' && (
+        <div className="flex flex-wrap items-center gap-3 border-b border-[var(--color-line)] bg-[var(--color-surface-sunken)] px-3 py-2">
+          <div className="flex items-center gap-1">
+            {TERRAIN_TYPES.map((terrain) => (
+              <Tooltip key={terrain.id} label={terrain.label}>
+                <button
+                  type="button"
+                  aria-label={`Paint ${terrain.label}`}
+                  aria-pressed={activeTerrain === terrain.id}
+                  onClick={() => setActiveTerrain(terrain.id)}
+                  className={cn(
+                    'h-6 w-6 shrink-0 rounded-full border-2 transition-transform',
+                    activeTerrain === terrain.id
+                      ? 'scale-110 border-[var(--color-ink)]'
+                      : 'border-transparent hover:scale-105',
+                  )}
+                  style={{ backgroundColor: terrain.color }}
+                />
+              </Tooltip>
+            ))}
+          </div>
+          <label className="flex items-center gap-1.5 text-[0.72rem] text-[var(--color-ink-faint)]">
+            Brush
+            <input
+              type="range"
+              min={6}
+              max={160}
+              value={brushSize}
+              aria-label="Brush size"
+              onChange={(event) => setBrushSize(Number(event.target.value))}
+              className="h-1 w-24 cursor-pointer appearance-none rounded-full bg-[var(--color-line)] accent-[var(--color-accent)]"
+            />
+            <span className="w-7 font-mono tabular-nums">{brushSize}</span>
+          </label>
+          <Tooltip label="Undo last stroke">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Undo last stroke"
+              disabled={undoStack.current.length === 0}
+              onClick={undoLast}
+            >
+              <Undo2 size={13} />
+            </Button>
+          </Tooltip>
+        </div>
+      )}
+
+      {tool === 'stamp' && (
+        <div className="flex flex-wrap items-center gap-3 border-b border-[var(--color-line)] bg-[var(--color-surface-sunken)] px-3 py-2">
+          <div className="flex flex-wrap items-center gap-1">
+            {(['Nature', 'Structures', 'Travel', 'Camp'] as MapIconCategory[]).map((category) => (
+              <div key={category} className="flex items-center gap-0.5">
+                {MAP_ICONS.filter((icon) => icon.category === category).map((icon) => (
+                  <Tooltip key={icon.id} label={icon.label}>
+                    <button
+                      type="button"
+                      aria-label={`Place ${icon.label}`}
+                      aria-pressed={activeIcon === icon.id}
+                      onClick={() => setActiveIcon(icon.id)}
+                      className={cn(
+                        'flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-control)] border transition-colors',
+                        activeIcon === icon.id
+                          ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+                          : 'border-transparent text-[var(--color-ink-muted)] hover:bg-[var(--color-overlay)]',
+                      )}
+                    >
+                      <svg viewBox="0 0 24 24" width={16} height={16}>
+                        <MapIconGlyph shapes={icon.shapes} />
+                      </svg>
+                    </button>
+                  </Tooltip>
+                ))}
+                <span className="mx-0.5 h-4 w-px bg-[var(--color-line)] last:hidden" />
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-1">
+            {STAMP_COLORS.map((color) => (
+              <button
+                key={color}
+                type="button"
+                aria-label={`Stamp color ${color}`}
+                aria-pressed={activeStampColor === color}
+                onClick={() => setActiveStampColor(color)}
+                className={cn(
+                  'h-5 w-5 shrink-0 rounded-full border-2 transition-transform',
+                  activeStampColor === color
+                    ? 'scale-110 border-[var(--color-ink)]'
+                    : 'border-transparent hover:scale-105',
+                )}
+                style={{ backgroundColor: color }}
+              />
+            ))}
+          </div>
+          <Tooltip label="Undo last stamp">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Undo last stamp"
+              disabled={undoStack.current.length === 0}
+              onClick={undoLast}
+            >
+              <Undo2 size={13} />
+            </Button>
+          </Tooltip>
+        </div>
+      )}
+
       <div className="relative min-h-0 flex-1">
         <svg
           ref={svgRef}
           role="application"
           aria-label={`${map.name} — pan with drag, zoom with the scroll wheel`}
-          className={`h-full w-full touch-none ${placing ? 'cursor-crosshair' : 'cursor-grab'}`}
+          className={`h-full w-full touch-none ${cursor}`}
           onWheel={(event) => {
             const rect = svgRef.current?.getBoundingClientRect();
             zoomBy(
@@ -214,14 +451,35 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
             );
           }}
           onPointerDown={(event) => {
-            if (placing) {
+            if (tool === 'marker') {
               const point = toMapSpace(event.clientX, event.clientY);
               const id = createMarker({ mapId: map.id, x: point.x, y: point.y, label: 'New marker' });
-              setActiveMarkerId(id);
-              setPlacing(false);
+              setSelection({ kind: 'marker', id });
+              setTool('pan');
               return;
             }
-            if (dragState.current) return;
+            if (tool === 'terrain') {
+              const point = toMapSpace(event.clientX, event.clientY);
+              paintingRef.current = { pointerId: event.pointerId, points: [point] };
+              setLivePoints([point]);
+              event.currentTarget.setPointerCapture(event.pointerId);
+              return;
+            }
+            if (tool === 'stamp') {
+              const point = toMapSpace(event.clientX, event.clientY);
+              const id = createStamp({
+                mapId: map.id,
+                icon: activeIcon,
+                x: point.x,
+                y: point.y,
+                color: activeStampColor,
+              });
+              pushUndo({ kind: 'stamp', id });
+              return;
+            }
+            // Pan/select mode: clicking empty canvas clears selection and pans.
+            setSelection(null);
+            if (dragState.current || terrainDragState.current) return;
             panState.current = {
               pointerId: event.pointerId,
               startX: event.clientX,
@@ -232,13 +490,33 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
             event.currentTarget.setPointerCapture(event.pointerId);
           }}
           onPointerMove={(event) => {
+            const painting = paintingRef.current;
+            if (painting && painting.pointerId === event.pointerId) {
+              const point = toMapSpace(event.clientX, event.clientY);
+              const last = painting.points[painting.points.length - 1];
+              const dist = Math.hypot(point.x - last.x, point.y - last.y);
+              if (dist >= MIN_POINT_SPACING) {
+                painting.points.push(point);
+                setLivePoints([...painting.points]);
+              }
+              return;
+            }
+            const terrainDrag = terrainDragState.current;
+            if (terrainDrag && terrainDrag.pointerId === event.pointerId) {
+              const point = toMapSpace(event.clientX, event.clientY);
+              const dx = point.x - terrainDrag.startX;
+              const dy = point.y - terrainDrag.startY;
+              updateTerrainStroke(terrainDrag.id, {
+                points: terrainDrag.original.map((p) => ({ x: p.x + dx, y: p.y + dy })),
+              });
+              return;
+            }
             const drag = dragState.current;
             if (drag && drag.pointerId === event.pointerId) {
               const point = toMapSpace(event.clientX, event.clientY);
-              updateMarker(drag.markerId, {
-                x: clamp(point.x, 0, map.width),
-                y: clamp(point.y, 0, map.height),
-              });
+              const clamped = { x: clamp(point.x, 0, map.width), y: clamp(point.y, 0, map.height) };
+              if (drag.kind === 'marker') updateMarker(drag.id, clamped);
+              else updateStamp(drag.id, clamped);
               return;
             }
             const pan = panState.current;
@@ -250,8 +528,23 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
             }));
           }}
           onPointerUp={(event) => {
+            const painting = paintingRef.current;
+            if (painting && painting.pointerId === event.pointerId) {
+              paintingRef.current = null;
+              setLivePoints(null);
+              const points =
+                painting.points.length > 1 ? painting.points : [painting.points[0], painting.points[0]];
+              const id = createTerrainStroke({
+                mapId: map.id,
+                terrain: activeTerrain,
+                points,
+                brushSize,
+              });
+              pushUndo({ kind: 'terrain', id });
+            }
             panState.current = null;
             dragState.current = null;
+            terrainDragState.current = null;
             if (event.currentTarget.hasPointerCapture(event.pointerId)) {
               event.currentTarget.releasePointerCapture(event.pointerId);
             }
@@ -259,6 +552,9 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
           onPointerCancel={() => {
             panState.current = null;
             dragState.current = null;
+            terrainDragState.current = null;
+            paintingRef.current = null;
+            setLivePoints(null);
           }}
         >
           <defs>
@@ -301,16 +597,70 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
               <rect width={map.width} height={map.height} fill="url(#creatura-map-grid)" />
             )}
 
+            {terrainStrokes.map((stroke) => (
+              <TerrainStrokeGlyph
+                key={stroke.id}
+                stroke={stroke}
+                active={selection?.kind === 'terrain' && selection.id === stroke.id}
+                interactive={tool === 'pan'}
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  setSelection({ kind: 'terrain', id: stroke.id });
+                  const point = toMapSpace(event.clientX, event.clientY);
+                  terrainDragState.current = {
+                    pointerId: event.pointerId,
+                    id: stroke.id,
+                    startX: point.x,
+                    startY: point.y,
+                    original: stroke.points,
+                  };
+                  (event.currentTarget.ownerSVGElement as SVGSVGElement)?.setPointerCapture(
+                    event.pointerId,
+                  );
+                }}
+              />
+            ))}
+
+            {livePoints && livePoints.length > 0 && (
+              <path
+                d={pathFromPoints(livePoints.length > 1 ? livePoints : [livePoints[0], livePoints[0]])}
+                fill="none"
+                stroke={terrainColor(activeTerrain)}
+                strokeOpacity={0.55}
+                strokeWidth={brushSize}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                pointerEvents="none"
+              />
+            )}
+
+            {stamps.map((stamp) => (
+              <StampGlyph
+                key={stamp.id}
+                stamp={stamp}
+                active={selection?.kind === 'stamp' && selection.id === stamp.id}
+                interactive={tool === 'pan'}
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  setSelection({ kind: 'stamp', id: stamp.id });
+                  dragState.current = { pointerId: event.pointerId, kind: 'stamp', id: stamp.id };
+                  (event.currentTarget.ownerSVGElement as SVGSVGElement)?.setPointerCapture(
+                    event.pointerId,
+                  );
+                }}
+              />
+            ))}
+
             {markers.map((marker) => (
               <MarkerGlyph
                 key={marker.id}
                 marker={marker}
                 scale={viewport.scale}
-                active={marker.id === activeMarkerId}
+                active={selection?.kind === 'marker' && selection.id === marker.id}
                 onPointerDown={(event) => {
                   event.stopPropagation();
-                  dragState.current = { pointerId: event.pointerId, markerId: marker.id };
-                  setActiveMarkerId(marker.id);
+                  setSelection({ kind: 'marker', id: marker.id });
+                  dragState.current = { pointerId: event.pointerId, kind: 'marker', id: marker.id };
                   (event.currentTarget.ownerSVGElement as SVGSVGElement)?.setPointerCapture(
                     event.pointerId,
                   );
@@ -323,7 +673,7 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
         {activeMarker && (
           <MarkerInspector
             marker={activeMarker}
-            onClose={() => setActiveMarkerId(null)}
+            onClose={() => setSelection(null)}
             onOpenLocation={openEntity}
             onDelete={async () => {
               const ok = await confirm({
@@ -334,13 +684,138 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
               });
               if (ok) {
                 deleteMarker(activeMarker.id);
-                setActiveMarkerId(null);
+                setSelection(null);
               }
+            }}
+          />
+        )}
+
+        {activeTerrainStroke && (
+          <TerrainInspector
+            stroke={activeTerrainStroke}
+            onClose={() => setSelection(null)}
+            onChangeTerrain={(terrain) => updateTerrainStroke(activeTerrainStroke.id, { terrain })}
+            onChangeBrushSize={(brushSizeNext) =>
+              updateTerrainStroke(activeTerrainStroke.id, { brushSize: brushSizeNext })
+            }
+            onDelete={() => {
+              deleteTerrainStroke(activeTerrainStroke.id);
+              setSelection(null);
+            }}
+          />
+        )}
+
+        {activeStamp && (
+          <StampInspector
+            stamp={activeStamp}
+            onClose={() => setSelection(null)}
+            onChangeRotation={(rotation) => updateStamp(activeStamp.id, { rotation })}
+            onChangeScale={(scale) => updateStamp(activeStamp.id, { scale })}
+            onChangeColor={(color) => updateStamp(activeStamp.id, { color })}
+            onDelete={() => {
+              deleteStamp(activeStamp.id);
+              setSelection(null);
             }}
           />
         )}
       </div>
     </div>
+  );
+}
+
+function pathFromPoints(points: Array<{ x: number; y: number }>): string {
+  return points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+}
+
+function TerrainStrokeGlyph({
+  stroke,
+  active,
+  interactive,
+  onPointerDown,
+}: {
+  stroke: MapTerrainStroke;
+  active: boolean;
+  interactive: boolean;
+  onPointerDown: (event: React.PointerEvent<SVGPathElement>) => void;
+}) {
+  const d = pathFromPoints(stroke.points);
+  const color = terrainColor(stroke.terrain);
+  return (
+    <>
+      <path
+        d={d}
+        fill="none"
+        stroke={color}
+        strokeOpacity={active ? 0.8 : 0.55}
+        strokeWidth={stroke.brushSize}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        pointerEvents="none"
+      />
+      {active && (
+        <path
+          d={d}
+          fill="none"
+          stroke="var(--color-ink)"
+          strokeOpacity={0.35}
+          strokeWidth={stroke.brushSize + 6}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          pointerEvents="none"
+        />
+      )}
+      <path
+        d={d}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={Math.max(stroke.brushSize, 22)}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={interactive ? 'cursor-pointer' : undefined}
+        pointerEvents={interactive ? 'stroke' : 'none'}
+        onPointerDown={onPointerDown}
+      />
+    </>
+  );
+}
+
+function StampGlyph({
+  stamp,
+  active,
+  interactive,
+  onPointerDown,
+}: {
+  stamp: MapStamp;
+  active: boolean;
+  interactive: boolean;
+  onPointerDown: (event: React.PointerEvent<SVGGElement>) => void;
+}) {
+  const icon = mapIconById(stamp.icon);
+  if (!icon) return null;
+  // Icons are drawn on a 24×24 box; centered and sized in map units.
+  const box = 28 * stamp.scale;
+  return (
+    <g
+      transform={`translate(${stamp.x} ${stamp.y}) rotate(${stamp.rotation}) scale(${box / 24})`}
+      className={interactive ? 'cursor-pointer' : undefined}
+      pointerEvents={interactive ? 'auto' : 'none'}
+      onPointerDown={onPointerDown}
+      style={{ color: stamp.color }}
+      role={interactive ? 'button' : undefined}
+      aria-label={interactive ? icon.label : undefined}
+    >
+      <g transform="translate(-12 -12)">
+        {active && (
+          <circle cx={12} cy={12} r={16} fill="none" stroke="var(--color-accent)" strokeWidth={1.5} />
+        )}
+        {/* An icon's own shapes are often thin or irregular (a rock's
+            outline, a signpost's post) — this invisible disc gives the
+            whole nominal icon box a comfortable, uniform click/drag target
+            instead of only the painted pixels. */}
+        <circle cx={12} cy={12} r={13} fill="transparent" pointerEvents={interactive ? 'all' : 'none'} />
+        <MapIconGlyph shapes={icon.shapes} />
+      </g>
+    </g>
   );
 }
 
@@ -465,6 +940,157 @@ function MarkerInspector({
           <Trash2 size={13} className="text-[var(--color-danger)]" />
         </Button>
       </div>
+    </div>
+  );
+}
+
+function TerrainInspector({
+  stroke,
+  onClose,
+  onChangeTerrain,
+  onChangeBrushSize,
+  onDelete,
+}: {
+  stroke: MapTerrainStroke;
+  onClose: () => void;
+  onChangeTerrain: (terrain: TerrainKind) => void;
+  onChangeBrushSize: (size: number) => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="absolute right-3 bottom-3 w-64 rounded-[var(--radius-panel)] border border-[var(--color-line)] bg-[var(--color-overlay)] p-3 shadow-[var(--shadow-float)] animate-rise">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h3 className="type-label">Terrain stroke</h3>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close terrain details"
+          className="text-[0.7rem] text-[var(--color-ink-faint)] hover:text-[var(--color-ink)]"
+        >
+          Done
+        </button>
+      </div>
+
+      <div className="mb-2 flex items-center gap-1">
+        {TERRAIN_TYPES.map((terrain) => (
+          <Tooltip key={terrain.id} label={terrain.label}>
+            <button
+              type="button"
+              aria-label={terrain.label}
+              aria-pressed={stroke.terrain === terrain.id}
+              onClick={() => onChangeTerrain(terrain.id)}
+              className={cn(
+                'h-6 w-6 shrink-0 rounded-full border-2 transition-transform',
+                stroke.terrain === terrain.id
+                  ? 'scale-110 border-[var(--color-ink)]'
+                  : 'border-transparent hover:scale-105',
+              )}
+              style={{ backgroundColor: terrain.color }}
+            />
+          </Tooltip>
+        ))}
+      </div>
+
+      <label className="mb-2 flex items-center gap-1.5 text-[0.72rem] text-[var(--color-ink-faint)]">
+        Width
+        <input
+          type="range"
+          min={6}
+          max={160}
+          value={stroke.brushSize}
+          aria-label="Stroke width"
+          onChange={(event) => onChangeBrushSize(Number(event.target.value))}
+          className="h-1 flex-1 cursor-pointer appearance-none rounded-full bg-[var(--color-line)] accent-[var(--color-accent)]"
+        />
+        <span className="w-7 font-mono tabular-nums">{stroke.brushSize}</span>
+      </label>
+
+      <Button variant="ghost" size="icon-sm" aria-label="Delete stroke" onClick={onDelete}>
+        <Trash2 size={13} className="text-[var(--color-danger)]" />
+      </Button>
+    </div>
+  );
+}
+
+function StampInspector({
+  stamp,
+  onClose,
+  onChangeRotation,
+  onChangeScale,
+  onChangeColor,
+  onDelete,
+}: {
+  stamp: MapStamp;
+  onClose: () => void;
+  onChangeRotation: (rotation: number) => void;
+  onChangeScale: (scale: number) => void;
+  onChangeColor: (color: string) => void;
+  onDelete: () => void;
+}) {
+  const icon = mapIconById(stamp.icon);
+  return (
+    <div className="absolute right-3 bottom-3 w-64 rounded-[var(--radius-panel)] border border-[var(--color-line)] bg-[var(--color-overlay)] p-3 shadow-[var(--shadow-float)] animate-rise">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h3 className="type-label">{icon?.label ?? 'Stamp'}</h3>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close stamp details"
+          className="text-[0.7rem] text-[var(--color-ink-faint)] hover:text-[var(--color-ink)]"
+        >
+          Done
+        </button>
+      </div>
+
+      <label className="mb-2 flex items-center gap-1.5 text-[0.72rem] text-[var(--color-ink-faint)]">
+        Rotation
+        <input
+          type="range"
+          min={0}
+          max={359}
+          value={stamp.rotation}
+          aria-label="Stamp rotation"
+          onChange={(event) => onChangeRotation(Number(event.target.value))}
+          className="h-1 flex-1 cursor-pointer appearance-none rounded-full bg-[var(--color-line)] accent-[var(--color-accent)]"
+        />
+      </label>
+
+      <label className="mb-2 flex items-center gap-1.5 text-[0.72rem] text-[var(--color-ink-faint)]">
+        Size
+        <input
+          type="range"
+          min={0.4}
+          max={2.5}
+          step={0.1}
+          value={stamp.scale}
+          aria-label="Stamp size"
+          onChange={(event) => onChangeScale(Number(event.target.value))}
+          className="h-1 flex-1 cursor-pointer appearance-none rounded-full bg-[var(--color-line)] accent-[var(--color-accent)]"
+        />
+      </label>
+
+      <div className="mb-2 flex items-center gap-1">
+        {STAMP_COLORS.map((color) => (
+          <button
+            key={color}
+            type="button"
+            aria-label={`Color ${color}`}
+            aria-pressed={stamp.color === color}
+            onClick={() => onChangeColor(color)}
+            className={cn(
+              'h-5 w-5 shrink-0 rounded-full border-2 transition-transform',
+              stamp.color === color
+                ? 'scale-110 border-[var(--color-ink)]'
+                : 'border-transparent hover:scale-105',
+            )}
+            style={{ backgroundColor: color }}
+          />
+        ))}
+      </div>
+
+      <Button variant="ghost" size="icon-sm" aria-label="Delete stamp" onClick={onDelete}>
+        <Trash2 size={13} className="text-[var(--color-danger)]" />
+      </Button>
     </div>
   );
 }
