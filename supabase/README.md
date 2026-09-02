@@ -50,6 +50,23 @@ instead of a blank screen:
   vars are right, but step 1 hasn't been run against this project.
 - Any other message is the Postgres/PostgREST error text verbatim.
 
+## For the deployed (GitHub Pages) build
+
+Vite inlines `VITE_`-prefixed env vars at build time, not at runtime — a
+local `.env` only affects `npm run dev`/`npm run build` on your machine.
+For the GitHub Pages deploy to reach Supabase too, add the same two values
+as repository secrets (**Settings → Secrets and variables → Actions**):
+
+```
+VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY
+```
+
+`.github/workflows/deploy-pages.yml` already passes them through to the
+build step — nothing else to change once the secrets exist. Until they're
+added, the deployed site builds and runs fine, just showing the same
+"Supabase isn't configured yet" state described above.
+
 ## Notes on the design
 
 - **Timestamps** are stored as `bigint` epoch-milliseconds (the same numbers
