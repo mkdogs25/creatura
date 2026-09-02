@@ -43,7 +43,7 @@ export function App() {
   const view = useUiStore((s) => s.view);
   const focusMode = useUiStore((s) => s.focusMode);
   // "Open map in a new tab" opens this same app at ?map=<locationDocId> — a
-  // second, independent instance reading the same origin's IndexedDB, not a
+  // second, independent instance reading the same Supabase database, not a
   // shared window. Read once: the query string doesn't change during a tab's
   // life, and re-reading on every render would fight React's render model
   // for no reason.
@@ -60,8 +60,10 @@ export function App() {
     let cancelled = false;
 
     const boot = async () => {
-      const settings = await useSettingsStore.getState().load();
-
+      // Settings now live in Supabase too, so there's no point trying to load
+      // them (or the project bundle) before confirming the database is even
+      // reachable — checked first, with the store's built-in defaults standing
+      // in for the unreachable-database error state below.
       const database = await openDatabase();
       if (!database.ok) {
         persistence.markOffline();
@@ -72,7 +74,7 @@ export function App() {
         });
         useUiStore.getState().toast({
           tone: 'error',
-          title: 'Local storage unavailable',
+          title: 'Supabase unavailable',
           body: database.reason,
           sticky: true,
         });
@@ -80,6 +82,7 @@ export function App() {
         return;
       }
 
+      const settings = await useSettingsStore.getState().load();
       await useProjectStore.getState().bootstrap();
       if (cancelled) return;
 
@@ -166,10 +169,10 @@ function ProjectGate({ children }: { children: React.ReactNode }) {
     return (
       <EmptyState
         icon={AlertTriangle}
-        title="Local storage is unavailable."
+        title="Supabase is unavailable."
         body={
           dbMessage ??
-          'This browser will not let Creatura open its database, so nothing can be saved.'
+          'Creatura could not reach its Supabase database, so nothing can be saved.'
         }
       >
         <Button variant="secondary" onClick={() => window.location.reload()}>

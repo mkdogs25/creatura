@@ -7,16 +7,9 @@ import { useEditorStore } from '@/store/editorStore';
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { SettingsSection } from '@/components/settings/panels/SettingsSection';
 import { Button } from '@/components/ui/Button';
-import { estimateStorage } from '@/db/database';
+import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { persistence } from '@/store/persistence';
 import { relativeTime } from '@/utils/text';
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-  return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
-}
 
 export function DataPanel() {
   const bundle = useProjectStore((s) => s.bundle);
@@ -30,11 +23,9 @@ export function DataPanel() {
   const lastExportAt = useSettingsStore((s) => s.settings.lastExportAt);
   const actions = useProjectActions();
 
-  const [storage, setStorage] = useState<{ usage: number; quota: number } | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(persistence.getLastSavedAt());
 
   useEffect(() => {
-    void estimateStorage().then(setStorage);
     return persistence.subscribe((_status, savedAt) => setLastSavedAt(savedAt));
   }, []);
 
@@ -42,23 +33,23 @@ export function DataPanel() {
     <>
       <SettingsSection
         title="Storage"
-        description="Creatura keeps everything in this browser's IndexedDB. Nothing leaves the device."
+        description="Creatura stores everything in a Supabase project. Every device that can reach it shares the same data."
       >
         <dl className="divide-y divide-[var(--color-line)] text-[0.8rem]">
+          <div className="flex justify-between py-2">
+            <dt className="text-[var(--color-ink-muted)]">Backend</dt>
+            <dd className="text-[var(--color-ink)]">Supabase</dd>
+          </div>
+          <div className="flex justify-between py-2">
+            <dt className="text-[var(--color-ink-muted)]">Configuration</dt>
+            <dd className={isSupabaseConfigured ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}>
+              {isSupabaseConfigured ? 'Credentials set' : 'Missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY'}
+            </dd>
+          </div>
           <div className="flex justify-between py-2">
             <dt className="text-[var(--color-ink-muted)]">Database status</dt>
             <dd className={dbReady ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}>
               {dbReady ? 'Connected' : 'Unavailable'}
-            </dd>
-          </div>
-          <div className="flex justify-between py-2">
-            <dt className="text-[var(--color-ink-muted)]">Storage used</dt>
-            <dd className="font-mono text-[var(--color-ink)]">
-              {storage
-                ? `${formatBytes(storage.usage)}${
-                    storage.quota ? ` of ${formatBytes(storage.quota)}` : ''
-                  }`
-                : 'Not reported by this browser'}
             </dd>
           </div>
           <div className="flex justify-between py-2">
@@ -135,7 +126,7 @@ export function DataPanel() {
               if (!bundle) return;
               const ok = await confirm({
                 title: `Delete “${bundle.project.name}”?`,
-                body: 'The project and everything in it is removed from this device.',
+                body: 'The project and everything in it is removed from Supabase, for everyone who shares this database.',
                 detail: 'This cannot be undone.',
                 confirmLabel: 'Delete permanently',
                 destructive: true,

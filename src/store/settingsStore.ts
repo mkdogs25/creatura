@@ -29,7 +29,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   loaded: false,
 
   load: async () => {
-    const settings = await loadSettings();
+    let settings: Settings;
+    try {
+      settings = await loadSettings();
+    } catch (error) {
+      console.error('[creatura] failed to load settings, using defaults', error);
+      settings = defaultSettings();
+    }
     set({ settings, loaded: true });
     return settings;
   },

@@ -3,7 +3,7 @@ import type { SaveStatus } from '@/types/domain';
 type Listener = (status: SaveStatus, lastSavedAt: number | null) => void;
 
 /**
- * Tracks every write to IndexedDB and exposes a single save status for the
+ * Tracks every write to Supabase and exposes a single save status for the
  * header indicator.
  *
  * Writes are counted rather than flagged, so a burst of edits shows "Saving…"

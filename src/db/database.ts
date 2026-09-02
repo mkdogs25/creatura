@@ -1,56 +1,4 @@
-import Dexie, { type Table } from 'dexie';
-import { applyMigrations } from '@/db/migrations';
-import type {
-  CharacterDoc,
-  DocSnapshot,
-  Folder,
-  LocationDoc,
-  ManuscriptChapter,
-  MapMarker,
-  MatrixCell,
-  NoteDoc,
-  PointOfView,
-  Project,
-  Relationship,
-  Settings,
-  StoryMap,
-  TimelineEvent,
-  TimelineSection,
-} from '@/types/domain';
-
-/**
- * The single IndexedDB database backing Creatura.
- *
- * Characters, locations and notes live in separate tables rather than one
- * polymorphic table: it keeps their indexes tight, and it is what makes the
- * `character_…` / `location_…` id prefixes meaningful rather than decorative.
- */
-export class CreaturaDatabase extends Dexie {
-  projects!: Table<Project, string>;
-  folders!: Table<Folder, string>;
-  characters!: Table<CharacterDoc, string>;
-  locations!: Table<LocationDoc, string>;
-  notes!: Table<NoteDoc, string>;
-  tags!: Table<import('@/types/domain').Tag, string>;
-  relationships!: Table<Relationship, string>;
-  events!: Table<TimelineEvent, string>;
-  sections!: Table<TimelineSection, string>;
-  povs!: Table<PointOfView, string>;
-  maps!: Table<StoryMap, string>;
-  markers!: Table<MapMarker, string>;
-  cells!: Table<MatrixCell, string>;
-  settings!: Table<Settings, string>;
-  snapshots!: Table<DocSnapshot, string>;
-  chapters!: Table<ManuscriptChapter, string>;
-
-  constructor() {
-    super('creatura');
-
-    applyMigrations(this);
-  }
-}
-
-export const db = new CreaturaDatabase();
+import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 
 /** Names of every project-scoped table, used for bulk delete and export. */
 export const PROJECT_TABLES = [
@@ -71,45 +19,55 @@ export const PROJECT_TABLES = [
 
 export type ProjectTableName = (typeof PROJECT_TABLES)[number];
 
-let openPromise: Promise<void> | null = null;
+let checked: Promise<{ ok: boolean; reason?: string }> | null = null;
 
 /**
- * Opens the database, recovering from the two failure modes that otherwise
- * leave the app permanently blank: a schema left behind by a newer build, and
- * a browser that refuses IndexedDB outright (private mode, blocked storage).
+ * Confirms Supabase is reachable and the schema has been migrated in,
+ * recovering from the two failure modes that otherwise leave the app
+ * permanently blank: missing credentials, and a project whose migration
+ * (supabase/migrations/0001_init.sql) hasn't been run yet.
  */
 export async function openDatabase(): Promise<{ ok: boolean; reason?: string }> {
-  if (!openPromise) {
-    openPromise = db.open().then(() => undefined);
+  if (!checked) checked = probe();
+  return checked;
+}
+
+async function probe(): Promise<{ ok: boolean; reason?: string }> {
+  if (!isSupabaseConfigured) {
+    return {
+      ok: false,
+      reason:
+        'Supabase isn’t configured yet. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (see .env.example) and reload.',
+    };
   }
+
   try {
-    await openPromise;
-    return { ok: true };
-  } catch (error) {
-    openPromise = null;
-    const name = error instanceof Error ? error.name : '';
-    if (name === 'VersionError') {
+    const { error } = await supabase.from('projects').select('id').limit(1);
+    if (!error) return { ok: true };
+
+    // undefined_table — the schema migration hasn't been applied to this project yet.
+    if (error.code === '42P01') {
       return {
         ok: false,
         reason:
-          'This browser holds a Creatura database from a newer version. Export your work there, or clear site data to continue.',
+          'Connected to Supabase, but the schema isn’t set up yet. Run supabase/migrations/0001_init.sql against this project.',
       };
     }
     return {
       ok: false,
-      reason:
-        'Local storage is unavailable in this browser context, so changes cannot be saved. Writing still works, but nothing will persist.',
+      reason: `Could not reach Supabase: ${error.message}`,
+    };
+  } catch (error) {
+    checked = null;
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return {
+      ok: false,
+      reason: `Could not reach Supabase (network error): ${message}`,
     };
   }
 }
 
-/** Best-effort storage estimate for the Data & Storage settings panel. */
-export async function estimateStorage(): Promise<{ usage: number; quota: number } | null> {
-  try {
-    if (!navigator.storage?.estimate) return null;
-    const { usage = 0, quota = 0 } = await navigator.storage.estimate();
-    return { usage, quota };
-  } catch {
-    return null;
-  }
+/** Lets a failed connection be retried (e.g. after the user fixes .env and reloads isn't enough — a manual retry button). */
+export function resetDatabaseProbe(): void {
+  checked = null;
 }

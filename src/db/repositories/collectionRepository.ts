@@ -1,37 +1,36 @@
-import type { Table } from 'dexie';
-import { db, type CreaturaDatabase, type ProjectTableName } from '@/db/database';
+import { supabase } from '@/lib/supabaseClient';
+import { toRow } from '@/lib/caseMapping';
+import type { ProjectTableName } from '@/db/database';
 
 /**
  * Thin write helpers for the project-scoped collections (tags, events,
- * markers…). Reads go through `loadProjectBundle`; these exist so the store can
- * write one record without knowing anything about Dexie.
- *
- * The row type is derived from the table name, so passing a `Tag` to the
- * `events` table is a compile error rather than a corrupt record.
+ * markers…). Reads go through `loadProjectBundle`; these exist so the store
+ * can write one record without knowing anything about Supabase.
  */
-type RowOf<T extends ProjectTableName> =
-  CreaturaDatabase[T] extends Table<infer R, string> ? R : never;
-
-export async function putRecord<T extends ProjectTableName>(
-  table: T,
-  record: RowOf<T>,
+export async function putRecord<T extends { id: string }>(
+  table: ProjectTableName,
+  record: T,
 ): Promise<void> {
-  await (db[table] as Table<RowOf<T>, string>).put(record);
+  const { error } = await supabase.from(table).upsert(toRow(record));
+  if (error) throw error;
 }
 
-export async function putRecords<T extends ProjectTableName>(
-  table: T,
-  records: Array<RowOf<T>>,
+export async function putRecords<T extends { id: string }>(
+  table: ProjectTableName,
+  records: T[],
 ): Promise<void> {
   if (records.length === 0) return;
-  await (db[table] as Table<RowOf<T>, string>).bulkPut(records);
+  const { error } = await supabase.from(table).upsert(records.map((record) => toRow(record)));
+  if (error) throw error;
 }
 
 export async function deleteRecord(table: ProjectTableName, id: string): Promise<void> {
-  await db[table].delete(id);
+  const { error } = await supabase.from(table).delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function deleteRecords(table: ProjectTableName, ids: string[]): Promise<void> {
   if (ids.length === 0) return;
-  await db[table].bulkDelete(ids);
+  const { error } = await supabase.from(table).delete().in('id', ids);
+  if (error) throw error;
 }

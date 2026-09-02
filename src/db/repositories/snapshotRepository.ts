@@ -1,4 +1,5 @@
-import { db } from '@/db/database';
+import { supabase } from '@/lib/supabaseClient';
+import { toRow, fromRows } from '@/lib/caseMapping';
 import type { DocSnapshot, RichContent } from '@/types/domain';
 import { newId } from '@/utils/id';
 
@@ -17,8 +18,13 @@ export const MAX_SNAPSHOTS = 8;
 export const SNAPSHOT_INTERVAL_MS = 2 * 60 * 1000;
 
 export async function listSnapshots(docId: string): Promise<DocSnapshot[]> {
-  const rows = await db.snapshots.where('docId').equals(docId).toArray();
-  return rows.sort((a, b) => b.createdAt - a.createdAt);
+  const { data, error } = await supabase
+    .from('snapshots')
+    .select('*')
+    .eq('doc_id', docId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return fromRows<DocSnapshot>(data ?? []);
 }
 
 /**
@@ -41,17 +47,26 @@ export async function maybeSnapshot(doc: Snapshottable): Promise<boolean> {
     wordCount: doc.wordCount,
     createdAt: Date.now(),
   };
-  await db.snapshots.put(snapshot);
+  const { error: putError } = await supabase.from('snapshots').upsert(toRow(snapshot));
+  if (putError) throw putError;
 
   const stale = existing.slice(MAX_SNAPSHOTS - 1);
-  if (stale.length > 0) await db.snapshots.bulkDelete(stale.map((row) => row.id));
+  if (stale.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('snapshots')
+      .delete()
+      .in('id', stale.map((row) => row.id));
+    if (deleteError) throw deleteError;
+  }
   return true;
 }
 
 export async function deleteSnapshotsFor(docId: string): Promise<void> {
-  await db.snapshots.where('docId').equals(docId).delete();
+  const { error } = await supabase.from('snapshots').delete().eq('doc_id', docId);
+  if (error) throw error;
 }
 
 export async function deleteSnapshotsForProject(projectId: string): Promise<void> {
-  await db.snapshots.where('projectId').equals(projectId).delete();
+  const { error } = await supabase.from('snapshots').delete().eq('project_id', projectId);
+  if (error) throw error;
 }

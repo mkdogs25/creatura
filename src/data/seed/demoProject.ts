@@ -24,7 +24,7 @@ import { materializeFolders, templateById } from '@/data/templates';
  * "Tidewrack" — the demo world.
  *
  * This file is only data. The builder below assigns real ids and wires the
- * cross-references, so the demo lands in IndexedDB as an ordinary project the
+ * cross-references, so the demo lands in Supabase as an ordinary project the
  * author can edit or delete like any other. Nothing in the application special
  * cases it.
  */
@@ -472,7 +472,7 @@ function parseBody(paragraphs: string[], resolve: (key: Key) => { id: string; na
 
 /**
  * Builds the demo project as a fully-formed bundle with fresh ids, ready to be
- * written to IndexedDB exactly like a user-created project.
+ * written to Supabase exactly like a user-created project.
  */
 export function buildDemoProject(): ProjectBundle {
   const now = Date.now();

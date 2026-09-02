@@ -9,10 +9,12 @@ import { EmptyState } from '@/components/ui/EmptyState';
 /**
  * The whole browser tab, given over to one location's map — what "open in a
  * new tab" opens. This is a second, independent instance of the app reading
- * the same origin's IndexedDB, not a shared window: it boots, loads whatever
- * project is currently active on this device, and looks up the requested
- * doc in it. A different project active in this tab than in the one the link
- * was opened from is the one way this can come up empty.
+ * the same Supabase database, not a shared window: it boots, loads whatever
+ * project is currently active (a setting shared across every tab and device,
+ * since it now lives in Supabase rather than this browser's storage), and
+ * looks up the requested doc in it. Someone switching the active project in
+ * another tab between opening this link and it loading is the one way this
+ * can come up empty.
  */
 export function MapStandaloneView({ docId }: { docId: string }) {
   const bundle = useProjectStore((s) => s.bundle);

@@ -1,7 +1,7 @@
 /**
  * Zod schemas for everything Creatura persists.
  *
- * These run at two boundaries: reading records back out of IndexedDB, and
+ * These run at two boundaries: reading records back out of Supabase, and
  * importing a project file. Both are places where data can be older than the
  * code or hand-edited, so every schema is written to be forgiving — missing
  * optional fields get defaults rather than rejecting the record outright.

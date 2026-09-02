@@ -70,7 +70,7 @@ export function SaveIndicator() {
 
   return (
     <span className="text-[var(--color-ink-faint)]">
-      {lastSavedAt ? `Saved ${relativeTime(lastSavedAt)}` : 'All changes saved locally'}
+      {lastSavedAt ? `Saved ${relativeTime(lastSavedAt)}` : 'All changes saved'}
     </span>
   );
 }

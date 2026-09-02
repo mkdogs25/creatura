@@ -103,8 +103,8 @@ export function WelcomeDialog() {
           CREATURA
         </h1>
         <p className="mx-auto mt-2 max-w-md text-[0.85rem] leading-relaxed text-[var(--color-ink-muted)]">
-          A story bible, a chronology and a quiet place to write — sharing one world, stored
-          entirely on this device.
+          A story bible, a chronology and a quiet place to write — sharing one world, kept in
+          your Supabase database.
         </p>
 
         <div className="mt-7 grid gap-3 text-left sm:grid-cols-3">

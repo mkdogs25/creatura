@@ -22,7 +22,8 @@ import type {
   TimelineEvent,
   TimelineSection,
 } from '@/types/domain';
-import { db, type ProjectTableName } from '@/db/database';
+import { type ProjectTableName } from '@/db/database';
+import { supabase } from '@/lib/supabaseClient';
 import {
   clearProjectContents,
   deleteProjectDeep,
@@ -674,7 +675,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const bundle = get().bundle;
       if (!bundle) return;
 
-      // Collect the whole subtree so nothing is orphaned in IndexedDB.
+      // Collect the whole subtree so nothing is orphaned in the database.
       const doomed = new Set<string>([folderId]);
       let grew = true;
       while (grew) {
@@ -1366,9 +1367,9 @@ export const PROJECT_COLLECTIONS: ProjectTableName[] = [
   'cells',
 ];
 
-/** Re-exported so callers can check database readiness without importing Dexie. */
+/** Re-exported so callers can reach the Supabase client without a separate import. */
 export function databaseHandle() {
-  return db;
+  return supabase;
 }
 
 export type { Settings };

@@ -10,7 +10,7 @@ const CREDITS: Array<[string, string]> = [
   ['Vite', 'Build tooling'],
   ['Tailwind CSS', 'Design tokens and styling'],
   ['Tiptap / ProseMirror', 'Rich text editing'],
-  ['Dexie.js', 'IndexedDB persistence'],
+  ['Supabase', 'Postgres database'],
   ['Zustand', 'State management'],
   ['Zod', 'Schema validation'],
   ['Lucide', 'Interface icons'],
@@ -42,16 +42,16 @@ export function AboutPanel() {
 
       <SettingsSection title="Privacy">
         <p className="py-2 text-[0.81rem] leading-relaxed text-[var(--color-ink-muted)]">
-          Everything you write stays on this device. Projects, notes, characters, timelines and
-          maps are stored in your browser's IndexedDB database and are never uploaded, synced or
-          transmitted anywhere. There are no accounts, no analytics and no network requests for
-          your content.
+          Projects, notes, characters, timelines and maps are stored in a Supabase project — a
+          Postgres database this app talks to directly, not a third-party analytics or tracking
+          service. There are no accounts yet, which means anyone with access to that database's
+          credentials can read and write everything in it; treat the connection details
+          accordingly.
         </p>
         <p className="py-2 text-[0.81rem] leading-relaxed text-[var(--color-ink-muted)]">
-          Because storage is local, clearing your browser's site data will delete your projects.
-          Export a copy from Data &amp; Storage if you want a backup you control. Should an
-          external sync feature ever be added, it will be opt-in and clearly announced — nothing
-          leaves this device without you asking for it.
+          Export a copy from Data &amp; Storage whenever you want a local backup you control —
+          worth doing before any destructive action, since deleting a project removes it from the
+          shared database for everyone who uses it.
         </p>
       </SettingsSection>
 

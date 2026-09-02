@@ -13,7 +13,7 @@ export function WritingPanel() {
     <>
       <SettingsSection
         title="Autosave"
-        description="Changes are written to this device's database, never to a server."
+        description="Changes are written to your Supabase database as you write."
       >
         <Switch
           label="Save automatically while writing"
