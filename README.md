@@ -11,12 +11,7 @@ renaming them updates every sentence that mentions them.
 Everything lives in your browser's IndexedDB. No accounts, no server, no
 network requests for your content.
 
-```bash
-npm install
-npm run dev      # development server
-npm run build    # typecheck + production build
-npm run preview  # serve the production build
-```
+Use this link to open it: https://mkdogs25.github.io/creatura/
 
 ## The three workspaces
 
