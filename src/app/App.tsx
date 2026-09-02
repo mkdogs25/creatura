@@ -31,6 +31,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
 import { buildDemoProject } from '@/data/seed/demoProject';
 import { useProjectActions } from '@/hooks/useProjectActions';
+import { startBackupScheduler } from '@/features/backup/backupScheduler';
 
 /**
  * Application root.
@@ -44,7 +45,7 @@ export function App() {
   const view = useUiStore((s) => s.view);
   const focusMode = useUiStore((s) => s.focusMode);
   // "Open map in a new tab" opens this same app at ?map=<locationDocId> — a
-  // second, independent instance reading the same Supabase database, not a
+  // second, independent instance reading the same local IndexedDB, not a
   // shared window. Read once: the query string doesn't change during a tab's
   // life, and re-reading on every render would fight React's render model
   // for no reason.
@@ -64,10 +65,11 @@ export function App() {
     let cancelled = false;
 
     const boot = async () => {
-      // Settings now live in Supabase too, so there's no point trying to load
-      // them (or the project bundle) before confirming the database is even
-      // reachable — checked first, with the store's built-in defaults standing
-      // in for the unreachable-database error state below.
+      // The database is local (IndexedDB), so this only fails in a handful
+      // of edge cases — private browsing, blocked storage, a schema from a
+      // newer build — but it's still checked first, with the store's
+      // built-in defaults standing in for the unreachable-database error
+      // state below.
       const database = await openDatabase();
       if (!database.ok) {
         persistence.markOffline();
@@ -78,7 +80,7 @@ export function App() {
         });
         useUiStore.getState().toast({
           tone: 'error',
-          title: 'Supabase unavailable',
+          title: 'Local storage unavailable',
           body: database.reason,
           sticky: true,
         });
@@ -98,6 +100,7 @@ export function App() {
       }
 
       if (!settings.onboardingComplete) ui.setOnboardingOpen(true);
+      void startBackupScheduler();
       setBooting(false);
     };
 
@@ -182,10 +185,10 @@ function ProjectGate({ children }: { children: React.ReactNode }) {
     return (
       <EmptyState
         icon={AlertTriangle}
-        title="Supabase is unavailable."
+        title="Local storage is unavailable."
         body={
           dbMessage ??
-          'Creatura could not reach its Supabase database, so nothing can be saved.'
+          'Creatura could not open its local database, so nothing can be saved.'
         }
       >
         <Button variant="secondary" onClick={() => window.location.reload()}>

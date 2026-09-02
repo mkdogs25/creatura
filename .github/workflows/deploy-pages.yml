@@ -39,13 +39,6 @@ jobs:
           # This repo is not <owner>.github.io, so Pages serves it from a
           # subpath — the build has to know that to emit correct asset URLs.
           VITE_BASE_PATH: /creatura/
-          # Vite inlines env vars at build time, not read at runtime — so the
-          # deployed site only reaches Supabase once these two secrets are
-          # added under Settings -> Secrets and variables -> Actions. Until
-          # then this builds fine but shows the app's own "Supabase isn't
-          # configured yet" state, same as running locally without a .env.
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - uses: actions/configure-pages@v5
         with:

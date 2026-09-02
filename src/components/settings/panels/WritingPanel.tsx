@@ -13,7 +13,7 @@ export function WritingPanel() {
     <>
       <SettingsSection
         title="Autosave"
-        description="Changes are written to your Supabase database as you write."
+        description="Changes are written to this browser's local database as you write."
       >
         <Switch
           label="Save automatically while writing"

@@ -41,6 +41,10 @@ export function defaultSettings(): Settings {
       confirmDestructive: true,
       showMatrixTab: false,
     },
+    backup: {
+      enabled: true,
+      intervalMinutes: 3,
+    },
     onboardingComplete: false,
     activeProjectId: null,
     lastExportAt: null,

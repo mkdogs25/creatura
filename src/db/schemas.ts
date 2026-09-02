@@ -1,7 +1,7 @@
 /**
  * Zod schemas for everything Creatura persists.
  *
- * These run at two boundaries: reading records back out of Supabase, and
+ * These run at two boundaries: reading records back out of IndexedDB, and
  * importing a project file. Both are places where data can be older than the
  * code or hand-edited, so every schema is written to be forgiving — missing
  * optional fields get defaults rather than rejecting the record outright.
@@ -278,6 +278,12 @@ export const settingsSchema = z.object({
       confirmDestructive: true,
       showMatrixTab: false,
     }),
+  backup: z
+    .object({
+      enabled: z.boolean().catch(true),
+      intervalMinutes: z.number().min(1).max(5).catch(3),
+    })
+    .catch({ enabled: true, intervalMinutes: 3 }),
   onboardingComplete: z.boolean().catch(false),
   activeProjectId: z.string().nullable().catch(null),
   lastExportAt: z.number().nullable().catch(null),

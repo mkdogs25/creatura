@@ -3,8 +3,8 @@ import type { SaveStatus } from '@/types/domain';
 type Listener = (status: SaveStatus, lastSavedAt: number | null) => void;
 
 /**
- * Tracks every write to Supabase and exposes a single save status for the
- * header indicator.
+ * Tracks every write to the local database and exposes a single save status
+ * for the header indicator.
  *
  * Writes are counted rather than flagged, so a burst of edits shows "Saving…"
  * once and settles to "Saved" only when the last one lands. A failure is

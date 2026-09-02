@@ -10,7 +10,7 @@ const CREDITS: Array<[string, string]> = [
   ['Vite', 'Build tooling'],
   ['Tailwind CSS', 'Design tokens and styling'],
   ['Tiptap / ProseMirror', 'Rich text editing'],
-  ['Supabase', 'Postgres database'],
+  ['Dexie', 'IndexedDB storage'],
   ['Zustand', 'State management'],
   ['Zod', 'Schema validation'],
   ['Lucide', 'Interface icons'],
@@ -42,16 +42,15 @@ export function AboutPanel() {
 
       <SettingsSection title="Privacy">
         <p className="py-2 text-[0.81rem] leading-relaxed text-[var(--color-ink-muted)]">
-          Projects, notes, characters, timelines and maps are stored in a Supabase project — a
-          Postgres database this app talks to directly, not a third-party analytics or tracking
-          service. There are no accounts yet, which means anyone with access to that database's
-          credentials can read and write everything in it; treat the connection details
-          accordingly.
+          Projects, notes, characters, timelines and maps are stored entirely on this device, in
+          this browser's own IndexedDB — nothing leaves it, and there's no server for this app to
+          talk to. Clearing this browser's site data removes everything, with nothing to recover
+          it from unless a backup was made first.
         </p>
         <p className="py-2 text-[0.81rem] leading-relaxed text-[var(--color-ink-muted)]">
-          Export a copy from Data &amp; Storage whenever you want a local backup you control —
-          worth doing before any destructive action, since deleting a project removes it from the
-          shared database for everyone who uses it.
+          Data &amp; Storage can also connect a folder on disk, which the app keeps a periodic,
+          human-readable backup in (markdown for text, SVG for maps) — worth setting up before any
+          destructive action, and the easiest way to move a project to another device.
         </p>
       </SettingsSection>
 

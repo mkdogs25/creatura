@@ -23,7 +23,6 @@ import type {
   TimelineSection,
 } from '@/types/domain';
 import { type ProjectTableName } from '@/db/database';
-import { supabase } from '@/lib/supabaseClient';
 import {
   clearProjectContents,
   deleteProjectDeep,
@@ -1366,10 +1365,5 @@ export const PROJECT_COLLECTIONS: ProjectTableName[] = [
   'markers',
   'cells',
 ];
-
-/** Re-exported so callers can reach the Supabase client without a separate import. */
-export function databaseHandle() {
-  return supabase;
-}
 
 export type { Settings };

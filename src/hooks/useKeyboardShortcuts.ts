@@ -129,7 +129,7 @@ export function useUnsavedGuard(): void {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       const { dirty, activeDocId, editor } = useEditorStore.getState();
       if (!dirty || !activeDocId || !editor) return;
-      // Persist synchronously-ish, then still prompt: Supabase writes are
+      // Persist synchronously-ish, then still prompt: IndexedDB writes are
       // async and may not complete during unload.
       useProjectStore
         .getState()

@@ -298,12 +298,19 @@ export interface InterfaceSettings {
   showMatrixTab: boolean;
 }
 
+/** How often the active project mirrors itself to the connected backup folder. */
+export interface BackupSettings {
+  enabled: boolean;
+  intervalMinutes: number;
+}
+
 export interface Settings {
   id: 'app';
   appearance: AppearanceSettings;
   editor: EditorSettings;
   writing: WritingSettings;
   interface: InterfaceSettings;
+  backup: BackupSettings;
   onboardingComplete: boolean;
   activeProjectId: string | null;
   lastExportAt: number | null;
