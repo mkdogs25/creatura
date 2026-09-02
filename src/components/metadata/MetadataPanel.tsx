@@ -15,7 +15,7 @@ import { MetadataFields } from '@/components/metadata/MetadataFields';
 import { RelationshipEditor } from '@/components/metadata/RelationshipEditor';
 import { HistorySection } from '@/components/metadata/HistorySection';
 import { EntitySuggestions } from '@/components/metadata/EntitySuggestions';
-import { linkEntityInContent } from '@/features/mentions/entitySuggestions';
+import { expandKnownNames, linkEntityInContent } from '@/features/mentions/entitySuggestions';
 import { formatPosition } from '@/utils/time';
 import { relativeTime } from '@/utils/text';
 import type { DocKind } from '@/types/domain';
@@ -70,7 +70,7 @@ export function MetadataPanel() {
   const { openEntity, openEvent } = useNavigation();
 
   const doc = useMemo(() => docById(bundle, activeDocId), [bundle, activeDocId]);
-  const knownNames = useMemo(() => allDocs(bundle).map((d) => d.name), [bundle]);
+  const knownNames = useMemo(() => expandKnownNames(allDocs(bundle)), [bundle]);
 
   const events = useMemo(
     () => (doc ? eventsForEntity(bundle, doc.id) : []),

@@ -152,6 +152,17 @@
   outline-offset: 1px;
 }
 
+/* ── Find & replace ────────────────────────────────────────────────────── */
+
+.find-match {
+  background: color-mix(in oklab, var(--color-accent) 30%, transparent);
+  border-radius: 2px;
+}
+.find-match-active {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
 /* Typewriter mode keeps the caret line near the vertical centre. */
 .creatura-prose.is-typewriter {
   padding-bottom: 50vh;

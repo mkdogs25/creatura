@@ -1,5 +1,27 @@
 import { docToPlainText } from '@/utils/text';
-import type { RichContent } from '@/types/domain';
+import type { AnyDoc, RichContent } from '@/types/domain';
+
+/**
+ * Expands a project's character/location names into every first/last-word
+ * part too — "Elysia" and "Ambrose" alongside "Elysia Ambrose" — so a
+ * suggestion for the existing entity's own first name never resurfaces just
+ * because the prose happens to use it alone. Notes are left whole (a note's
+ * title fragmenting into "known names" would just as often hide a real,
+ * still-uncreated character who happens to share a word with it).
+ */
+export function expandKnownNames(docs: Pick<AnyDoc, 'kind' | 'name'>[]): string[] {
+  const names = new Set<string>();
+  for (const doc of docs) {
+    names.add(doc.name);
+    if (doc.kind !== 'character' && doc.kind !== 'location') continue;
+    const words = doc.name.trim().split(/\s+/).filter(Boolean);
+    if (words.length > 1) {
+      names.add(words[0]);
+      names.add(words[words.length - 1]);
+    }
+  }
+  return [...names];
+}
 
 /**
  * Words that are capitalized often enough (sentence starters, pronouns,

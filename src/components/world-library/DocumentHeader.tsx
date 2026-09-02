@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Focus,
+  FileType,
   MoreHorizontal,
   PanelLeft,
   PanelRight,
@@ -20,6 +21,9 @@ import { Tooltip } from '@/components/ui/Tooltip';
 import { MenuHost, useMenu, type MenuEntry } from '@/components/ui/Menu';
 import { PopoverHost } from '@/components/ui/Popover';
 import { TagEditor } from '@/components/metadata/TagEditor';
+import { docById } from '@/store/selectors';
+import { docToMarkdown } from '@/utils/markdownExport';
+import { downloadTextFile } from '@/utils/download';
 import type { AnyDoc } from '@/types/domain';
 
 /** Title, path and per-document actions above the writing surface. */
@@ -77,6 +81,18 @@ export function DocumentHeader({ doc }: { doc: AnyDoc }) {
         });
         useProjectStore.getState().updateDoc(id, { fields: doc.fields });
         setActiveDoc(id);
+      },
+    },
+    {
+      id: 'export-markdown',
+      label: 'Export as Markdown',
+      icon: FileType,
+      onSelect: () => {
+        const bundle = useProjectStore.getState().bundle;
+        const markdown = docToMarkdown(doc.content, (entityId, fallback) =>
+          docById(bundle, entityId)?.name ?? fallback,
+        );
+        downloadTextFile(`${doc.name}.md`, markdown, 'text/markdown');
       },
     },
     { id: 's', separator: true },

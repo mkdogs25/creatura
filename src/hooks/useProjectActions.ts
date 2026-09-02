@@ -8,6 +8,8 @@ import { bundleToExport, filenameFor, parseProjectFile } from '@/features/projec
 import { buildProjectFromFolder } from '@/features/projects/folderImport';
 import { downloadTextFile, pickMarkdownFolder, pickTextFile, pickTextFiles } from '@/utils/download';
 import { markdownToDoc, titleFromFilename } from '@/utils/markdown';
+import { docToMarkdown } from '@/utils/markdownExport';
+import { docById, orderedChapters } from '@/store/selectors';
 import type { DocKind, ThemeMode, ViewId } from '@/types/domain';
 
 /**
@@ -125,6 +127,10 @@ export function useProjectActions() {
   const toggleLibraryPanel = useCallback(() => toggleLeftPanel(), [toggleLeftPanel]);
   const toggleDetailsPanel = useCallback(() => toggleRightPanel(), [toggleRightPanel]);
 
+  const openFindReplace = useCallback(() => {
+    useEditorStore.getState().setFindReplaceOpen(true);
+  }, []);
+
   const toggleToolbar = useCallback(() => {
     updateSettings('editor', { showToolbar: !settings.editor.showToolbar });
   }, [settings.editor.showToolbar, updateSettings]);
@@ -194,6 +200,38 @@ export function useProjectActions() {
       body: `${bundle.project.name} was written to a file on this device.`,
     });
   }, [bundle, toast, updateSettings]);
+
+  /** Concatenates every chapter, in order, into one markdown file — the
+   * manuscript's own export, separate from the JSON project backup. */
+  const exportManuscriptAsMarkdown = useCallback(() => {
+    if (!bundle) {
+      toast({ tone: 'error', title: 'No project open', body: 'Create or open a project first.' });
+      return;
+    }
+    const chapters = orderedChapters(bundle);
+    if (chapters.length === 0) {
+      toast({ tone: 'error', title: 'No chapters yet', body: 'Write something in Manuscript first.' });
+      return;
+    }
+    const resolveEntity = (entityId: string, fallback: string) =>
+      docById(bundle, entityId)?.name ?? fallback;
+    const text = chapters
+      .map((chapter) => `# ${chapter.title}\n\n${docToMarkdown(chapter.content, resolveEntity)}`)
+      .join('\n\n---\n\n');
+    downloadTextFile(`${bundle.project.name}.md`, text, 'text/markdown');
+    toast({ tone: 'success', title: 'Manuscript exported', body: `${chapters.length} chapters written to a markdown file.` });
+  }, [bundle, toast]);
+
+  /** Opens a print-ready view of the manuscript in a new tab — "Save as PDF"
+   * in the browser's own print dialog is the actual export, which produces
+   * a real text-based PDF rather than a rasterized image. */
+  const exportManuscriptAsPdf = useCallback(() => {
+    if (!bundle) {
+      toast({ tone: 'error', title: 'No project open', body: 'Create or open a project first.' });
+      return;
+    }
+    window.open(`${window.location.pathname}?print=manuscript`, '_blank', 'noopener');
+  }, [bundle, toast]);
 
   /** Returns whether a project was actually imported, so callers that gate
    * further UI on it (closing a dialog, marking onboarding done) know
@@ -345,11 +383,14 @@ export function useProjectActions() {
       toggleTypewriterMode,
       toggleSpellcheck,
       toggleMatrixTab,
+      openFindReplace,
       newProject,
       duplicateCurrentProject,
       archiveCurrentProject,
       deleteCurrentProject,
       exportProject,
+      exportManuscriptAsMarkdown,
+      exportManuscriptAsPdf,
       importProject,
       importMarkdownNotes,
       importMarkdownChapters,
@@ -370,11 +411,14 @@ export function useProjectActions() {
       toggleTypewriterMode,
       toggleSpellcheck,
       toggleMatrixTab,
+      openFindReplace,
       newProject,
       duplicateCurrentProject,
       archiveCurrentProject,
       deleteCurrentProject,
       exportProject,
+      exportManuscriptAsMarkdown,
+      exportManuscriptAsPdf,
       importProject,
       importMarkdownNotes,
       importMarkdownChapters,

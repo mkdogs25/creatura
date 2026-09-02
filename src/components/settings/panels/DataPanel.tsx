@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Download, Eraser, Trash2, Upload } from 'lucide-react';
+import { Download, Eraser, FileType, Printer, Trash2, Upload } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { useUiStore } from '@/store/uiStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -84,6 +84,18 @@ export function DataPanel() {
           <Button variant="secondary" onClick={actions.importProject}>
             <Upload size={14} />
             Import project file
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={actions.exportManuscriptAsMarkdown}
+            disabled={!bundle}
+          >
+            <FileType size={14} />
+            Manuscript as Markdown
+          </Button>
+          <Button variant="secondary" onClick={actions.exportManuscriptAsPdf} disabled={!bundle}>
+            <Printer size={14} />
+            Manuscript as PDF
           </Button>
         </div>
         <p className="pt-2 text-[0.74rem] leading-relaxed text-[var(--color-ink-faint)]">

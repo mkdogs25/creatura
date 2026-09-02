@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Copy, Focus, MoreHorizontal, PanelLeft, PanelRight, Trash2 } from 'lucide-react';
+import { Copy, FileType, Focus, MoreHorizontal, PanelLeft, PanelRight, Trash2 } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useUiStore } from '@/store/uiStore';
@@ -7,6 +7,9 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { Button } from '@/components/ui/Button';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { MenuHost, useMenu, type MenuEntry } from '@/components/ui/Menu';
+import { docById } from '@/store/selectors';
+import { docToMarkdown } from '@/utils/markdownExport';
+import { downloadTextFile } from '@/utils/download';
 import type { ManuscriptChapter } from '@/types/domain';
 
 /** Title and per-chapter actions above the writing surface. */
@@ -52,6 +55,18 @@ export function ChapterHeader({ chapter }: { chapter: ManuscriptChapter }) {
       onSelect: () => {
         const id = duplicateChapter(chapter.id);
         if (id) setActiveChapter(id);
+      },
+    },
+    {
+      id: 'export-markdown',
+      label: 'Export as Markdown',
+      icon: FileType,
+      onSelect: () => {
+        const bundle = useProjectStore.getState().bundle;
+        const markdown = docToMarkdown(chapter.content, (entityId, fallback) =>
+          docById(bundle, entityId)?.name ?? fallback,
+        );
+        downloadTextFile(`${chapter.title}.md`, markdown, 'text/markdown');
       },
     },
     { id: 's', separator: true },

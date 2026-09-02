@@ -7,12 +7,9 @@
     <meta name="theme-color" content="#22242A" />
     <!-- %BASE_URL% resolves against Vite's `base` so the icon still loads when served from a subpath (GitHub Pages). -->
     <link rel="icon" href="%BASE_URL%quill.svg" type="image/svg+xml" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:ital,opsz,wght@0,14..32,300..700;1,14..32,300..700&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..700&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Fonts are bundled with the app (see src/styles/index.css) rather than
+         loaded from Google Fonts here, so they render reliably regardless of
+         network restrictions or ad/privacy blockers. -->
     <title>Creatura</title>
     <script>
       // Apply the persisted theme before first paint to avoid a flash.

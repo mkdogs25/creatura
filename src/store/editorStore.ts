@@ -22,6 +22,8 @@ interface EditorState {
   reloadToken: number;
   /** Bumped when a restore point is written, so the history list re-reads. */
   historyToken: number;
+  /** Whether the find/replace bar is open over the current editor. */
+  findReplaceOpen: boolean;
 
   setActiveDoc: (docId: string | null) => void;
   setActiveChapter: (chapterId: string | null) => void;
@@ -30,6 +32,8 @@ interface EditorState {
   setDirty: (dirty: boolean) => void;
   reloadContent: () => void;
   noteSnapshotWritten: () => void;
+  setFindReplaceOpen: (open: boolean) => void;
+  toggleFindReplace: () => void;
 }
 
 /**
@@ -46,6 +50,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   dirty: false,
   reloadToken: 0,
   historyToken: 0,
+  findReplaceOpen: false,
 
   setActiveDoc: (docId) => set({ activeDocId: docId }),
   setActiveChapter: (chapterId) => set({ activeChapterId: chapterId }),
@@ -54,4 +59,6 @@ export const useEditorStore = create<EditorState>((set) => ({
   setDirty: (dirty) => set({ dirty }),
   reloadContent: () => set((state) => ({ reloadToken: state.reloadToken + 1 })),
   noteSnapshotWritten: () => set((state) => ({ historyToken: state.historyToken + 1 })),
+  setFindReplaceOpen: (open) => set({ findReplaceOpen: open }),
+  toggleFindReplace: () => set((state) => ({ findReplaceOpen: !state.findReplaceOpen })),
 }));

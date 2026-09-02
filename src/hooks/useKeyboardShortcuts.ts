@@ -36,6 +36,10 @@ export function useKeyboardShortcuts(): void {
           ui.closePalette();
           return;
         }
+        if (useEditorStore.getState().findReplaceOpen) {
+          useEditorStore.getState().setFindReplaceOpen(false);
+          return;
+        }
         if (ui.focusMode) {
           ui.setFocusMode(false);
           return;
@@ -87,6 +91,13 @@ export function useKeyboardShortcuts(): void {
         case '/': {
           event.preventDefault();
           ui.toggleRightPanel();
+          return;
+        }
+        case 'f': {
+          const editorState = useEditorStore.getState();
+          if (!editorState.editor) return;
+          event.preventDefault();
+          editorState.setFindReplaceOpen(true);
           return;
         }
         default:

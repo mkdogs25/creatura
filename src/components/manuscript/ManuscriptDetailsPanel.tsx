@@ -6,7 +6,7 @@ import { useUiStore } from '@/store/uiStore';
 import { allDocs, chapterById } from '@/store/selectors';
 import { HistorySection } from '@/components/metadata/HistorySection';
 import { EntitySuggestions } from '@/components/metadata/EntitySuggestions';
-import { linkEntityInContent } from '@/features/mentions/entitySuggestions';
+import { expandKnownNames, linkEntityInContent } from '@/features/mentions/entitySuggestions';
 import { relativeTime } from '@/utils/text';
 
 /** Word count, restore points and entity suggestions for the open chapter. */
@@ -20,7 +20,7 @@ export function ManuscriptDetailsPanel() {
   const activeChapterId = useEditorStore((s) => s.activeChapterId);
 
   const chapter = chapterById(bundle, activeChapterId);
-  const knownNames = useMemo(() => allDocs(bundle).map((d) => d.name), [bundle]);
+  const knownNames = useMemo(() => expandKnownNames(allDocs(bundle)), [bundle]);
 
   if (!chapter) {
     return (

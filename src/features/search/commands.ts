@@ -22,7 +22,10 @@ import {
   PanelLeft,
   PanelRight,
   PenLine,
+  FileType,
   Plus,
+  Printer,
+  Search,
   Settings as SettingsIcon,
   Focus,
   SpellCheck,
@@ -64,11 +67,14 @@ export interface CommandContext {
   toggleTypewriterMode: () => void;
   toggleSpellcheck: () => void;
   toggleMatrixTab: () => void;
+  openFindReplace: () => void;
   newProject: () => void;
   duplicateCurrentProject: () => void;
   archiveCurrentProject: () => void;
   deleteCurrentProject: () => void;
   exportProject: () => void;
+  exportManuscriptAsMarkdown: () => void;
+  exportManuscriptAsPdf: () => void;
   importProject: () => void;
   importMarkdownNotes: () => void;
   importMarkdownChapters: () => void;
@@ -312,6 +318,15 @@ export function buildCommands(context: CommandContext): Command[] {
       run: () => context.toggleToolbar(),
     },
     {
+      id: 'find-replace',
+      label: 'Find & Replace',
+      group: 'View',
+      icon: Search,
+      shortcut: '⌘F',
+      keywords: 'search text replace',
+      run: () => context.openFindReplace(),
+    },
+    {
       id: 'toggle-typewriter',
       label: 'Toggle Typewriter Mode',
       group: 'View',
@@ -350,6 +365,22 @@ export function buildCommands(context: CommandContext): Command[] {
       icon: Download,
       keywords: 'backup json save file',
       run: () => context.exportProject(),
+    },
+    {
+      id: 'export-manuscript-markdown',
+      label: 'Export Manuscript as Markdown',
+      group: 'Project',
+      icon: FileType,
+      keywords: 'md book draft download',
+      run: () => context.exportManuscriptAsMarkdown(),
+    },
+    {
+      id: 'export-manuscript-pdf',
+      label: 'Export Manuscript as PDF',
+      group: 'Project',
+      icon: Printer,
+      keywords: 'print book draft save',
+      run: () => context.exportManuscriptAsPdf(),
     },
     {
       id: 'import',

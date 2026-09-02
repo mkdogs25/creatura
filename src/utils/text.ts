@@ -1,5 +1,22 @@
 import type { RichContent } from '@/types/domain';
 
+/** The first word of a name — "Elysia" from "Elysia Ambrose", or the whole
+ * string unchanged when it's a single word. */
+export function firstWord(name: string): string {
+  return name.trim().split(/\s+/)[0] || name;
+}
+
+/** Dotted lowercase initials — "e.a." from "Elysia Ambrose". */
+export function initialsOf(name: string): string {
+  const letters = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word[0]?.toLowerCase())
+    .filter((letter): letter is string => Boolean(letter));
+  return letters.length > 0 ? `${letters.join('.')}.` : '';
+}
+
 /**
  * Flattens a Tiptap document to plain text. Entity references contribute the
  * label that was current when they were written, which is fine for search

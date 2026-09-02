@@ -9,6 +9,7 @@ import { FolderTree } from '@/components/world-library/FolderTree';
 import { DocumentHeader } from '@/components/world-library/DocumentHeader';
 import { ManuscriptEditor } from '@/components/editor/ManuscriptEditor';
 import { EditorToolbar } from '@/components/editor/EditorToolbar';
+import { FindReplaceBar } from '@/components/editor/FindReplaceBar';
 import { EditorStatusBar } from '@/components/editor/EditorStatusBar';
 import { MetadataPanel } from '@/components/metadata/MetadataPanel';
 import { MapBuilder } from '@/components/map/MapBuilder';
@@ -126,7 +127,8 @@ export function WorldLibraryView() {
       )}
 
       {/* Centre panel — the manuscript. Never unmounted. */}
-      <main className="flex min-w-0 flex-1 flex-col bg-[var(--color-canvas)]">
+      <main className="relative flex min-w-0 flex-1 flex-col bg-[var(--color-canvas)]">
+        <FindReplaceBar />
 
         {doc && !focusMode && <DocumentHeader doc={doc} />}
 

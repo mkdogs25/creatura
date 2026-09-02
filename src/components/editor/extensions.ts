@@ -8,6 +8,7 @@ import type { Extensions } from '@tiptap/core';
 import { EntityReference } from '@/editor/nodes/EntityReference';
 import { MentionSuggestion, WikiLinkSuggestion } from '@/editor/extensions/mentionSuggestion';
 import { AutoCapitalize } from '@/editor/extensions/autoCapitalize';
+import { FindReplace } from '@/editor/extensions/findReplace';
 import type { WritingSettings } from '@/types/domain';
 
 /**
@@ -57,6 +58,7 @@ export function buildExtensions(writing: WritingSettings): Extensions {
     EntityReference,
     MentionSuggestion,
     WikiLinkSuggestion,
+    FindReplace,
     ...(writing.autoCapitalize ? [AutoCapitalize] : []),
   ];
 }

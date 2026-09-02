@@ -7,6 +7,11 @@ export interface EntityReferenceAttrs {
   entityId: string;
   /** The name at insertion time, kept purely as a fallback and for plain-text export. */
   label: string;
+  /** `@`-mentions display just the first word of the live name ("Elysia", not
+   * "Elysia Ambrose"); wiki-links ([[) keep the full name. Set once at
+   * insertion and kept for the life of the node — a mention doesn't change
+   * shape depending on how it happens to be re-rendered. */
+  short?: boolean;
 }
 
 declare module '@tiptap/core' {
@@ -44,6 +49,11 @@ export const EntityReference = Node.create({
         default: '',
         parseHTML: (element) => element.getAttribute('data-label') ?? element.textContent ?? '',
         renderHTML: (attributes) => ({ 'data-label': attributes.label }),
+      },
+      short: {
+        default: false,
+        parseHTML: (element) => element.getAttribute('data-short') === 'true',
+        renderHTML: (attributes) => ({ 'data-short': attributes.short ? 'true' : 'false' }),
       },
     };
   },

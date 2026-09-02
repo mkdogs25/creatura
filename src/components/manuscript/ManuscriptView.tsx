@@ -9,6 +9,7 @@ import { ChapterSidebar } from '@/components/manuscript/ChapterSidebar';
 import { ChapterHeader } from '@/components/manuscript/ChapterHeader';
 import { ManuscriptEditor } from '@/components/editor/ManuscriptEditor';
 import { EditorToolbar } from '@/components/editor/EditorToolbar';
+import { FindReplaceBar } from '@/components/editor/FindReplaceBar';
 import { EditorStatusBar } from '@/components/editor/EditorStatusBar';
 import { ManuscriptDetailsPanel } from '@/components/manuscript/ManuscriptDetailsPanel';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -118,7 +119,8 @@ export function ManuscriptView() {
       )}
 
       {/* Centre panel — the draft. Never unmounted. */}
-      <main className="flex min-w-0 flex-1 flex-col bg-[var(--color-canvas)]">
+      <main className="relative flex min-w-0 flex-1 flex-col bg-[var(--color-canvas)]">
+        <FindReplaceBar />
 
         {chapter && !focusMode && <ChapterHeader chapter={chapter} />}
 

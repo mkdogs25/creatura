@@ -11,10 +11,13 @@ import {
   Minus,
   Quote,
   Redo2,
+  Search,
   Underline as UnderlineIcon,
   Undo2,
 } from 'lucide-react';
+import { useEditorStore } from '@/store/editorStore';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { Button } from '@/components/ui/Button';
 import { cn } from '@/utils/cn';
 
 interface ToolbarProps {
@@ -141,6 +144,8 @@ const CONTROLS: Control[] = [
 
 /** Formatting controls for the manuscript surface. */
 export function EditorToolbar({ editor }: ToolbarProps) {
+  const setFindReplaceOpen = useEditorStore((s) => s.setFindReplaceOpen);
+
   if (!editor) return null;
 
   return (
@@ -180,6 +185,17 @@ export function EditorToolbar({ editor }: ToolbarProps) {
           </span>
         );
       })}
+      <span className="mx-1.5 h-4 w-px bg-[var(--color-line)]" aria-hidden="true" />
+      <Tooltip label="Find & replace · ⌘F">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Find and replace"
+          onClick={() => setFindReplaceOpen(true)}
+        >
+          <Search size={14} />
+        </Button>
+      </Tooltip>
     </div>
   );
 }
