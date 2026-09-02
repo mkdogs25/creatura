@@ -96,7 +96,14 @@ export function detectNameCandidates(
   NAME_PATTERN.lastIndex = 0;
   let match: RegExpExecArray | null;
   while ((match = NAME_PATTERN.exec(text))) {
-    const raw = match[0].trim();
+    // Strip a trailing possessive or contraction ("Elysia's" -> "Elysia",
+    // "It's" -> "It") before anything else touches the match. Left in place,
+    // a possessive of an already-known name never matches `knownNames`
+    // (only the bare name is in it) and re-triggers a "create" suggestion
+    // for someone who already exists; a contraction like "It's"/"That's"
+    // also stops matching its own stopword ("it"/"that"), since the pattern
+    // allows apostrophes inside a word and the suffix survives untouched.
+    const raw = match[0].trim().replace(/['’](?:s|re|ll|ve|d|m)?$/i, '');
     if (raw.length < 2) continue;
     const words = raw.split(/\s+/);
 
@@ -108,6 +115,10 @@ export function detectNameCandidates(
     if (STOPWORDS.has(words[0].toLowerCase())) {
       if (words.length < 2) continue;
       candidate = words.slice(1).join(' ');
+      // The fallback word can be a stopword too ("Chapter One", "The Then") —
+      // a heading or another function word, not a name recovering from a
+      // capitalized sentence-starter. Drop it rather than flagging it.
+      if (STOPWORDS.has(candidate.split(/\s+/)[0].toLowerCase())) continue;
     }
 
     if (candidate.length < 3) continue;
