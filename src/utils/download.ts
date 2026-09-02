@@ -86,13 +86,35 @@ export function pickMarkdownFolder(): Promise<{
   files: PickedFolderFile[];
 }> {
   return new Promise((resolve) => {
-    const input = document.createElement('input');
+    const input = document.createElement('input') as HTMLInputElement & { webkitdirectory: boolean };
     input.type = 'file';
     input.multiple = true;
-    input.setAttribute('webkitdirectory', '');
-    input.setAttribute('directory', '');
+    // The IDL property is what actually switches Chrome/Edge/Safari into
+    // folder-selection mode; the attribute form is set too for browsers that
+    // only read it that way. Both must be set before the element is clicked.
+    input.webkitdirectory = true;
+    input.setAttribute('webkitdirectory', 'true');
+
+    // Unlike a plain file input, a webkitdirectory input reliably opens the
+    // OS folder picker only when it's actually attached to the document at
+    // click time — several browsers silently fall back to an ordinary file
+    // picker for a detached element. It's kept invisible and off-screen
+    // rather than `display: none`, since some browsers ignore clicks on
+    // undisplayed elements entirely.
+    input.style.position = 'fixed';
+    input.style.top = '-9999px';
+    input.style.left = '-9999px';
+    input.style.opacity = '0';
+    input.tabIndex = -1;
+    document.body.appendChild(input);
+
+    const cleanup = () => {
+      input.remove();
+    };
+
     input.onchange = async () => {
       const all = input.files ? Array.from(input.files) : [];
+      cleanup();
       if (all.length === 0) {
         resolve({ rootName: '', files: [] });
         return;
@@ -113,7 +135,10 @@ export function pickMarkdownFolder(): Promise<{
       const rootName = relativePathOf(all[0]).split('/')[0] || 'Imported folder';
       resolve({ rootName, files });
     };
-    input.oncancel = () => resolve({ rootName: '', files: [] });
+    input.oncancel = () => {
+      cleanup();
+      resolve({ rootName: '', files: [] });
+    };
     input.click();
   });
 }
