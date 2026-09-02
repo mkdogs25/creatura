@@ -13,103 +13,120 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 /**
+ * Builds a Suggestion-triggered entity-link extension. `@name` and
+ * `[[name` behave identically — same candidate list, same popup, same
+ * inserted node — they differ only in the trigger string, so both are
+ * generated from this one factory instead of duplicating the wiring.
+ */
+function createEntityLinkExtension(extensionName: string, char: string) {
+  return Extension.create({
+    name: extensionName,
+
+    addProseMirrorPlugins() {
+      const options: Omit<SuggestionOptions<MentionCandidate>, 'editor'> = {
+        char,
+        pluginKey: new PluginKey(`creatura-${extensionName}`),
+        allowSpaces: false,
+        startOfLine: false,
+
+        items: ({ query }) => {
+          const bundle = useProjectStore.getState().bundle;
+          const docs = allDocs(bundle);
+          const withContext = (doc: (typeof docs)[number]): MentionCandidate => {
+            const path = folderPath(bundle, doc.folderId)
+              .map((folder) => folder.name)
+              .join(' / ');
+            return {
+              doc,
+              context: path ? `${KIND_LABEL[doc.kind]} · ${path}` : KIND_LABEL[doc.kind],
+            };
+          };
+
+          if (!query) {
+            // No query yet: offer the most recently touched entities.
+            return [...docs]
+              .sort((a, b) => b.updatedAt - a.updatedAt)
+              .slice(0, 8)
+              .map(withContext);
+          }
+          return fuzzyRank(query, docs, (doc) => doc.name, 12).map(({ item }) =>
+            withContext(item),
+          );
+        },
+
+        command: ({ editor, range, props }) => {
+          editor
+            .chain()
+            .focus()
+            .deleteRange(range)
+            .insertEntityReference({ entityId: props.doc.id, label: props.doc.name })
+            .run();
+        },
+
+        render: () => ({
+          onStart: (props) => {
+            useMentionStore.getState().show({
+              query: props.query,
+              items: props.items,
+              rect: props.clientRect?.() ?? null,
+              select: (candidate) => props.command(candidate),
+            });
+          },
+          onUpdate: (props) => {
+            useMentionStore.getState().show({
+              query: props.query,
+              items: props.items,
+              rect: props.clientRect?.() ?? null,
+              select: (candidate) => props.command(candidate),
+            });
+          },
+          onKeyDown: (props) => {
+            const state = useMentionStore.getState();
+            if (!state.open) return false;
+            if (props.event.key === 'ArrowDown') {
+              state.move(1);
+              return true;
+            }
+            if (props.event.key === 'ArrowUp') {
+              state.move(-1);
+              return true;
+            }
+            if (props.event.key === 'Enter' || props.event.key === 'Tab') {
+              const candidate = state.items[state.index];
+              if (!candidate) return false;
+              state.select?.(candidate);
+              state.hide();
+              return true;
+            }
+            if (props.event.key === 'Escape') {
+              state.hide();
+              return true;
+            }
+            return false;
+          },
+          onExit: () => {
+            useMentionStore.getState().hide();
+          },
+        }),
+      };
+
+      return [Suggestion({ editor: this.editor, ...options })];
+    },
+  });
+}
+
+/**
  * The `@` autocomplete.
  *
  * Candidates are read straight from the project store, so the list is always
  * the current world — no separate index to keep in sync. Selecting one inserts
  * an `entityReference` node carrying the entity's stable id.
  */
-export const MentionSuggestion = Extension.create({
-  name: 'mentionSuggestion',
+export const MentionSuggestion = createEntityLinkExtension('mentionSuggestion', '@');
 
-  addProseMirrorPlugins() {
-    const options: Omit<SuggestionOptions<MentionCandidate>, 'editor'> = {
-      char: '@',
-      pluginKey: new PluginKey('creaturaMention'),
-      allowSpaces: false,
-      startOfLine: false,
-
-      items: ({ query }) => {
-        const bundle = useProjectStore.getState().bundle;
-        const docs = allDocs(bundle);
-        const withContext = (doc: (typeof docs)[number]): MentionCandidate => {
-          const path = folderPath(bundle, doc.folderId)
-            .map((folder) => folder.name)
-            .join(' / ');
-          return {
-            doc,
-            context: path ? `${KIND_LABEL[doc.kind]} · ${path}` : KIND_LABEL[doc.kind],
-          };
-        };
-
-        if (!query) {
-          // No query yet: offer the most recently touched entities.
-          return [...docs]
-            .sort((a, b) => b.updatedAt - a.updatedAt)
-            .slice(0, 8)
-            .map(withContext);
-        }
-        return fuzzyRank(query, docs, (doc) => doc.name, 12).map(({ item }) =>
-          withContext(item),
-        );
-      },
-
-      command: ({ editor, range, props }) => {
-        editor
-          .chain()
-          .focus()
-          .deleteRange(range)
-          .insertEntityReference({ entityId: props.doc.id, label: props.doc.name })
-          .run();
-      },
-
-      render: () => ({
-        onStart: (props) => {
-          useMentionStore.getState().show({
-            query: props.query,
-            items: props.items,
-            rect: props.clientRect?.() ?? null,
-            select: (candidate) => props.command(candidate),
-          });
-        },
-        onUpdate: (props) => {
-          useMentionStore.getState().show({
-            query: props.query,
-            items: props.items,
-            rect: props.clientRect?.() ?? null,
-            select: (candidate) => props.command(candidate),
-          });
-        },
-        onKeyDown: (props) => {
-          const state = useMentionStore.getState();
-          if (!state.open) return false;
-          if (props.event.key === 'ArrowDown') {
-            state.move(1);
-            return true;
-          }
-          if (props.event.key === 'ArrowUp') {
-            state.move(-1);
-            return true;
-          }
-          if (props.event.key === 'Enter' || props.event.key === 'Tab') {
-            const candidate = state.items[state.index];
-            if (!candidate) return false;
-            state.select?.(candidate);
-            state.hide();
-            return true;
-          }
-          if (props.event.key === 'Escape') {
-            state.hide();
-            return true;
-          }
-          return false;
-        },
-        onExit: () => {
-          useMentionStore.getState().hide();
-        },
-      }),
-    };
-
-    return [Suggestion({ editor: this.editor, ...options })];
-  },
-});
+/**
+ * Wiki-style linking: typing `[[` opens the same picker as `@`. There's no
+ * need to type a closing `]]` — picking an entity completes the link, exactly
+ * like the `@` trigger does, just spelled the way wiki-link users expect.
+ */
+export const WikiLinkSuggestion = createEntityLinkExtension('wikiLinkSuggestion', '[[');

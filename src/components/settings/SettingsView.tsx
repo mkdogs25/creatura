@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useUiStore } from '@/store/uiStore';
 import {
   Database,
   Info,
@@ -89,7 +90,8 @@ const CATEGORIES: Category[] = [
 
 /** A real settings screen: category navigation on the left, one panel at a time. */
 export function SettingsView() {
-  const [activeId, setActiveId] = useState('appearance');
+  const activeId = useUiStore((s) => s.settingsCategory);
+  const setActiveId = useUiStore((s) => s.setSettingsCategory);
   const active = useMemo(
     () => CATEGORIES.find((category) => category.id === activeId) ?? CATEGORIES[0],
     [activeId],

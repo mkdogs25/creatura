@@ -22,15 +22,23 @@ export function useProjectActions() {
   const createEventInStore = useProjectStore((s) => s.createEvent);
   const createChapterInStore = useProjectStore((s) => s.createChapter);
   const importBundle = useProjectStore((s) => s.importBundle);
+  const duplicateProjectInStore = useProjectStore((s) => s.duplicateProject);
+  const archiveProjectInStore = useProjectStore((s) => s.archiveProject);
+  const deleteProjectInStore = useProjectStore((s) => s.deleteProject);
 
   const setActiveDoc = useEditorStore((s) => s.setActiveDoc);
   const activeDocId = useEditorStore((s) => s.activeDocId);
   const setActiveChapter = useEditorStore((s) => s.setActiveChapter);
 
   const setView = useUiStore((s) => s.setView);
+  const setSettingsCategory = useUiStore((s) => s.setSettingsCategory);
   const focusMode = useUiStore((s) => s.focusMode);
   const setFocusMode = useUiStore((s) => s.setFocusMode);
   const toast = useUiStore((s) => s.toast);
+  const confirm = useUiStore((s) => s.confirm);
+  const setProjectDialogOpen = useUiStore((s) => s.setProjectDialogOpen);
+  const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel);
+  const toggleRightPanel = useUiStore((s) => s.toggleRightPanel);
 
   const settings = useSettingsStore((s) => s.settings);
   const updateSettings = useSettingsStore((s) => s.update);
@@ -95,7 +103,13 @@ export function useProjectActions() {
     setActiveChapter(id);
   }, [createChapterInStore, setActiveChapter, setView]);
 
-  const goto = useCallback((view: ViewId) => setView(view), [setView]);
+  const goto = useCallback(
+    (view: ViewId, settingsCategory?: string) => {
+      setView(view);
+      if (settingsCategory) setSettingsCategory(settingsCategory);
+    },
+    [setView, setSettingsCategory],
+  );
 
   const toggleFocus = useCallback(() => {
     setView('library');
@@ -107,6 +121,62 @@ export function useProjectActions() {
     const next = order[(order.indexOf(settings.appearance.theme) + 1) % order.length];
     updateSettings('appearance', { theme: next });
   }, [settings.appearance.theme, updateSettings]);
+
+  const toggleLibraryPanel = useCallback(() => toggleLeftPanel(), [toggleLeftPanel]);
+  const toggleDetailsPanel = useCallback(() => toggleRightPanel(), [toggleRightPanel]);
+
+  const toggleToolbar = useCallback(() => {
+    updateSettings('editor', { showToolbar: !settings.editor.showToolbar });
+  }, [settings.editor.showToolbar, updateSettings]);
+
+  const toggleTypewriterMode = useCallback(() => {
+    updateSettings('editor', { typewriterMode: !settings.editor.typewriterMode });
+  }, [settings.editor.typewriterMode, updateSettings]);
+
+  const toggleSpellcheck = useCallback(() => {
+    updateSettings('editor', { spellcheck: !settings.editor.spellcheck });
+  }, [settings.editor.spellcheck, updateSettings]);
+
+  const toggleMatrixTab = useCallback(() => {
+    updateSettings('interface', { showMatrixTab: !settings.interface.showMatrixTab });
+  }, [settings.interface.showMatrixTab, updateSettings]);
+
+  const newProject = useCallback(() => setProjectDialogOpen(true), [setProjectDialogOpen]);
+
+  const duplicateCurrentProject = useCallback(async () => {
+    const current = bundle?.project;
+    if (!current) return;
+    const id = await duplicateProjectInStore(current.id);
+    if (id) {
+      toast({
+        tone: 'success',
+        title: 'Project duplicated',
+        body: 'The copy is fully independent of the original.',
+      });
+    }
+  }, [bundle, duplicateProjectInStore, toast]);
+
+  const archiveCurrentProject = useCallback(() => {
+    const current = bundle?.project;
+    if (!current) return;
+    void archiveProjectInStore(current.id, !current.archived);
+  }, [bundle, archiveProjectInStore]);
+
+  const deleteCurrentProject = useCallback(async () => {
+    const current = bundle?.project;
+    if (!current) return;
+    const ok = await confirm({
+      title: `Delete “${current.name}”?`,
+      body: 'Every note, character, location, event and map in it is removed.',
+      detail: 'This cannot be undone. Export the project first if you might want it back.',
+      confirmLabel: 'Delete permanently',
+      destructive: true,
+    });
+    if (!ok) return;
+    setActiveDoc(null);
+    await deleteProjectInStore(current.id);
+    toast({ tone: 'info', title: `Deleted “${current.name}”` });
+  }, [bundle, confirm, deleteProjectInStore, setActiveDoc, toast]);
 
   const exportProject = useCallback(() => {
     if (!bundle) {
@@ -194,6 +264,39 @@ export function useProjectActions() {
   );
 
   /**
+   * Reads one or more markdown/plain-text files and creates a manuscript
+   * chapter per file, in the order they were selected — the Manuscript
+   * view's equivalent of importing markdown as notes. Returns the number
+   * actually imported, so callers can tell a cancelled picker (0) from a
+   * real import.
+   */
+  const importMarkdownChapters = useCallback(async (): Promise<number> => {
+    const files = await pickTextFiles();
+    if (files.length === 0) return 0;
+
+    let firstId: string | null = null;
+    for (const file of files) {
+      const id = createChapterInStore({
+        title: titleFromFilename(file.name),
+        content: markdownToDoc(file.text),
+      });
+      firstId ??= id;
+    }
+
+    setView('manuscript');
+    if (firstId) setActiveChapter(firstId);
+    toast({
+      tone: 'success',
+      title:
+        files.length === 1
+          ? `Imported “${titleFromFilename(files[0].name)}”`
+          : `Imported ${files.length} chapters`,
+      body: files.length > 1 ? 'Each file became its own chapter.' : undefined,
+    });
+    return files.length;
+  }, [createChapterInStore, setActiveChapter, setView, toast]);
+
+  /**
    * Uploads a whole folder and turns it into a brand-new project: its
    * subfolders become Creatura folders and every markdown file inside
    * becomes a note, in place. Returns whether a project was actually
@@ -236,9 +339,20 @@ export function useProjectActions() {
       goto,
       toggleFocus,
       toggleTheme,
+      toggleLibraryPanel,
+      toggleDetailsPanel,
+      toggleToolbar,
+      toggleTypewriterMode,
+      toggleSpellcheck,
+      toggleMatrixTab,
+      newProject,
+      duplicateCurrentProject,
+      archiveCurrentProject,
+      deleteCurrentProject,
       exportProject,
       importProject,
       importMarkdownNotes,
+      importMarkdownChapters,
       importFolderAsProject,
     }),
     [
@@ -250,9 +364,20 @@ export function useProjectActions() {
       goto,
       toggleFocus,
       toggleTheme,
+      toggleLibraryPanel,
+      toggleDetailsPanel,
+      toggleToolbar,
+      toggleTypewriterMode,
+      toggleSpellcheck,
+      toggleMatrixTab,
+      newProject,
+      duplicateCurrentProject,
+      archiveCurrentProject,
+      deleteCurrentProject,
       exportProject,
       importProject,
       importMarkdownNotes,
+      importMarkdownChapters,
       importFolderAsProject,
     ],
   );

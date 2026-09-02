@@ -6,7 +6,7 @@ import Typography from '@tiptap/extension-typography';
 import CharacterCount from '@tiptap/extension-character-count';
 import type { Extensions } from '@tiptap/core';
 import { EntityReference } from '@/editor/nodes/EntityReference';
-import { MentionSuggestion } from '@/editor/extensions/mentionSuggestion';
+import { MentionSuggestion, WikiLinkSuggestion } from '@/editor/extensions/mentionSuggestion';
 import { AutoCapitalize } from '@/editor/extensions/autoCapitalize';
 import type { WritingSettings } from '@/types/domain';
 
@@ -46,7 +46,9 @@ export function buildExtensions(writing: WritingSettings): Extensions {
     }),
     Placeholder.configure({
       placeholder: ({ node }) =>
-        node.type.name === 'heading' ? 'Heading' : 'Begin writing. Type @ to reference anything…',
+        node.type.name === 'heading'
+          ? 'Heading'
+          : 'Begin writing. Type @ or [[ to link anything…',
       showOnlyWhenEditable: true,
       includeChildren: false,
     }),
@@ -54,6 +56,7 @@ export function buildExtensions(writing: WritingSettings): Extensions {
     CharacterCount.configure({ limit: null }),
     EntityReference,
     MentionSuggestion,
+    WikiLinkSuggestion,
     ...(writing.autoCapitalize ? [AutoCapitalize] : []),
   ];
 }

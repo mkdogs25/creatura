@@ -36,6 +36,9 @@ interface UiState {
   projectDialogOpen: boolean;
   onboardingOpen: boolean;
   mapOpen: boolean;
+  /** Which Settings category is showing — lifted out of SettingsView so the
+   * command palette can jump straight to one. */
+  settingsCategory: string;
   toasts: Toast[];
   confirmRequest: ConfirmRequest | null;
   isNarrow: boolean;
@@ -50,6 +53,7 @@ interface UiState {
   setOnboardingOpen: (open: boolean) => void;
   setMapOpen: (open: boolean) => void;
   setIsNarrow: (narrow: boolean) => void;
+  setSettingsCategory: (id: string) => void;
 
   toast: (toast: Omit<Toast, 'id'>) => string;
   dismissToast: (id: string) => void;
@@ -71,6 +75,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   projectDialogOpen: false,
   onboardingOpen: false,
   mapOpen: false,
+  settingsCategory: 'appearance',
   toasts: [],
   confirmRequest: null,
   isNarrow: false,
@@ -95,6 +100,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   setOnboardingOpen: (open) => set({ onboardingOpen: open }),
   setMapOpen: (open) => set({ mapOpen: open }),
   setIsNarrow: (narrow) => set({ isNarrow: narrow }),
+  setSettingsCategory: (id) => set({ settingsCategory: id }),
 
   toast: (toast) => {
     const id = newId('tag');

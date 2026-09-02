@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { BookText, Copy, Pencil, Plus, Trash2 } from 'lucide-react';
+import { BookText, Copy, FileUp, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useUiStore } from '@/store/uiStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useProjectActions } from '@/hooks/useProjectActions';
 import { orderedChapters } from '@/store/selectors';
 import { MenuHost, useMenu, type MenuEntry } from '@/components/ui/Menu';
 import { Button } from '@/components/ui/Button';
@@ -23,6 +24,7 @@ export function ChapterSidebar() {
   const reorderChapter = useProjectStore((s) => s.reorderChapter);
   const activeChapterId = useEditorStore((s) => s.activeChapterId);
   const setActiveChapter = useEditorStore((s) => s.setActiveChapter);
+  const { importMarkdownChapters } = useProjectActions();
   const [renaming, setRenaming] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
@@ -40,11 +42,23 @@ export function ChapterSidebar() {
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between gap-2 px-3 py-2.5">
         <h2 className="type-label">Manuscript</h2>
-        <Tooltip label="New chapter">
-          <Button variant="ghost" size="icon-sm" aria-label="New chapter" onClick={addChapter}>
-            <Plus size={14} />
-          </Button>
-        </Tooltip>
+        <div className="flex items-center gap-0.5">
+          <Tooltip label="Import file as chapter">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Import a file as a chapter"
+              onClick={() => void importMarkdownChapters()}
+            >
+              <FileUp size={14} />
+            </Button>
+          </Tooltip>
+          <Tooltip label="New chapter">
+            <Button variant="ghost" size="icon-sm" aria-label="New chapter" onClick={addChapter}>
+              <Plus size={14} />
+            </Button>
+          </Tooltip>
+        </div>
       </header>
 
       <div className="scroll-thin flex-1 overflow-y-auto px-1.5 pb-4">

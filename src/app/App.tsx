@@ -17,6 +17,7 @@ import { WorldLibraryView } from '@/components/world-library/WorldLibraryView';
 import { TimelineView } from '@/components/timeline/TimelineView';
 import { ManuscriptView } from '@/components/manuscript/ManuscriptView';
 import { MatrixView } from '@/components/matrix/MatrixView';
+import { MapStandaloneView } from '@/components/map/MapStandaloneView';
 import { SettingsView } from '@/components/settings/SettingsView';
 import { CommandPalette } from '@/components/command-palette/CommandPalette';
 import { MentionMenu } from '@/components/editor/MentionMenu';
@@ -41,6 +42,14 @@ export function App() {
   const [booting, setBooting] = useState(true);
   const view = useUiStore((s) => s.view);
   const focusMode = useUiStore((s) => s.focusMode);
+  // "Open map in a new tab" opens this same app at ?map=<locationDocId> — a
+  // second, independent instance reading the same origin's IndexedDB, not a
+  // shared window. Read once: the query string doesn't change during a tab's
+  // life, and re-reading on every render would fight React's render model
+  // for no reason.
+  const [standaloneMapDocId] = useState(() =>
+    new URLSearchParams(window.location.search).get('map'),
+  );
 
   useThemeEffect();
   useKeyboardShortcuts();
@@ -99,6 +108,16 @@ export function App() {
           Opening your library…
         </span>
       </div>
+    );
+  }
+
+  // Standalone map tab: none of the usual chrome (nav, panels, other views) —
+  // just the map, full-page.
+  if (standaloneMapDocId) {
+    return (
+      <ErrorBoundary label="This map stopped responding">
+        <MapStandaloneView docId={standaloneMapDocId} />
+      </ErrorBoundary>
     );
   }
 

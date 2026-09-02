@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { Focus, MoreHorizontal, PanelLeft, PanelRight, Trash2, Copy, Map } from 'lucide-react';
+import {
+  Focus,
+  MoreHorizontal,
+  PanelLeft,
+  PanelRight,
+  Tag as TagIcon,
+  Trash2,
+  Copy,
+  Map,
+  ExternalLink,
+} from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useUiStore } from '@/store/uiStore';
@@ -8,6 +18,8 @@ import { Breadcrumbs } from '@/components/world-library/Breadcrumbs';
 import { Button } from '@/components/ui/Button';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { MenuHost, useMenu, type MenuEntry } from '@/components/ui/Menu';
+import { PopoverHost } from '@/components/ui/Popover';
+import { TagEditor } from '@/components/metadata/TagEditor';
 import type { AnyDoc } from '@/types/domain';
 
 /** Title, path and per-document actions above the writing surface. */
@@ -24,6 +36,7 @@ export function DocumentHeader({ doc }: { doc: AnyDoc }) {
   const confirm = useUiStore((s) => s.confirm);
   const confirmDestructive = useSettingsStore((s) => s.settings.interface.confirmDestructive);
   const menu = useMenu();
+  const tagPopover = useMenu();
 
   const [title, setTitle] = useState(doc.name);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -108,18 +121,43 @@ export function DocumentHeader({ doc }: { doc: AnyDoc }) {
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
           {doc.kind === 'location' && (
-            <Tooltip label={mapOpen ? 'Hide map' : 'Show map'}>
-              <Button
-                variant={mapOpen ? 'primary' : 'ghost'}
-                size="icon-sm"
-                aria-label="Toggle map"
-                aria-pressed={mapOpen}
-                onClick={() => setMapOpen(!mapOpen)}
-              >
-                <Map size={14} />
-              </Button>
-            </Tooltip>
+            <>
+              <Tooltip label={mapOpen ? 'Hide map' : 'Show map'}>
+                <Button
+                  variant={mapOpen ? 'primary' : 'ghost'}
+                  size="icon-sm"
+                  aria-label="Toggle map"
+                  aria-pressed={mapOpen}
+                  onClick={() => setMapOpen(!mapOpen)}
+                >
+                  <Map size={14} />
+                </Button>
+              </Tooltip>
+              <Tooltip label="Open map in a new tab">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Open map in a new tab"
+                  onClick={() =>
+                    window.open(`${window.location.pathname}?map=${doc.id}`, '_blank', 'noopener')
+                  }
+                >
+                  <ExternalLink size={14} />
+                </Button>
+              </Tooltip>
+            </>
           )}
+          <Tooltip label={doc.tagIds.length > 0 ? `Tags (${doc.tagIds.length})` : 'Add a tag'}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Edit tags"
+              aria-haspopup="dialog"
+              onClick={(event) => tagPopover.openFrom(event.currentTarget)}
+            >
+              <TagIcon size={14} />
+            </Button>
+          </Tooltip>
           <Tooltip label="Focus mode · ⌘.">
             <Button
               variant="ghost"
@@ -169,6 +207,9 @@ export function DocumentHeader({ doc }: { doc: AnyDoc }) {
       />
 
       <MenuHost anchor={menu.anchor} entries={entries} onClose={menu.close} align="end" />
+      <PopoverHost anchor={tagPopover.anchor} onClose={tagPopover.close} align="end" title="Tags">
+        <TagEditor tagIds={doc.tagIds} onChange={(tagIds) => updateDoc(doc.id, { tagIds })} />
+      </PopoverHost>
     </header>
   );
 }

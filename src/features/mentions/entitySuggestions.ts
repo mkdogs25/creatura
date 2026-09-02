@@ -30,6 +30,12 @@ const STOPWORDS = new Set([
 
 const NAME_PATTERN = /\b[A-Z][a-zA-Z'’-]*(?:\s+[A-Z][a-zA-Z'’-]*)?\b/g;
 
+/** A trimmed span of prose ends with terminal punctuation (optionally inside
+ * closing quotes/brackets) — the mark of a sentence, heading or list item
+ * boundary, i.e. the next word is capitalized because of its position, not
+ * because it's a proper noun. */
+const SENTENCE_END = /[.!?…:][)\]"'”’]*$/;
+
 export interface NameCandidate {
   name: string;
   count: number;
@@ -41,20 +47,30 @@ export interface NameCandidate {
  * yet, since anything in `knownNames` (existing entities, by name) is
  * excluded.
  *
- * This is a heuristic, not a parser: it will occasionally flag a recurring
- * sentence-starter, and it will occasionally miss a name used only once or
- * twice. Both are fine — the suggestion is a nudge, not an assertion, and a
- * false positive costs one click to ignore.
+ * Sentence-initial capitals are the main source of noise ("Harnessing the
+ * wind, she..."; a lone "I"). A single mid-sentence occurrence — a dialogue
+ * tag, "with Kael", "asked Elysia" — is far stronger evidence than any number
+ * of sentence-initial ones, so a candidate needs only `minCount` repeats once
+ * it has shown up mid-sentence even once, but a much higher bar
+ * (`minCount + 2`) when every occurrence happens to open a sentence, which is
+ * where a topic sentence's opening word or a heading keeps landing rather
+ * than a name. ALL-CAPS tokens (acronyms like "AI", "OK") and anything under
+ * three letters are dropped outright, which is what filters out a lone "I".
+ *
+ * This is a heuristic, not a parser: it will occasionally miss a name used
+ * only in narration at the start of sentences, and it will occasionally flag
+ * something that isn't a name. Both are fine — the suggestion is a nudge,
+ * not an assertion, and a false positive costs one click to ignore.
  */
 export function detectNameCandidates(
   content: RichContent | null | undefined,
   knownNames: ReadonlySet<string>,
-  minCount = 3,
+  minCount = 2,
 ): NameCandidate[] {
   const text = docToPlainText(content);
   if (!text) return [];
 
-  const counts = new Map<string, NameCandidate>();
+  const counts = new Map<string, { name: string; count: number; midCount: number }>();
   NAME_PATTERN.lastIndex = 0;
   let match: RegExpExecArray | null;
   while ((match = NAME_PATTERN.exec(text))) {
@@ -72,16 +88,31 @@ export function detectNameCandidates(
       candidate = words.slice(1).join(' ');
     }
 
+    if (candidate.length < 3) continue;
+    if (candidate === candidate.toUpperCase()) continue; // acronym/interjection, not a name
+
+    const before = text.slice(0, match.index).trimEnd();
+    const sentenceInitial = before.length === 0 || SENTENCE_END.test(before);
+
     const key = candidate.toLowerCase();
     const existing = counts.get(key);
-    if (existing) existing.count += 1;
-    else counts.set(key, { name: candidate, count: 1 });
+    if (existing) {
+      existing.count += 1;
+      if (!sentenceInitial) existing.midCount += 1;
+    } else {
+      counts.set(key, { name: candidate, count: 1, midCount: sentenceInitial ? 0 : 1 });
+    }
   }
 
   return [...counts.values()]
-    .filter((candidate) => candidate.count >= minCount && !knownNames.has(candidate.name.toLowerCase()))
+    .filter((candidate) => {
+      if (knownNames.has(candidate.name.toLowerCase())) return false;
+      const required = candidate.midCount > 0 ? minCount : minCount + 2;
+      return candidate.count >= required;
+    })
     .sort((a, b) => b.count - a.count)
-    .slice(0, 6);
+    .slice(0, 6)
+    .map(({ name, count }) => ({ name, count }));
 }
 
 function escapeRegExp(value: string): string {

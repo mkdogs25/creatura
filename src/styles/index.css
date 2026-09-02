@@ -52,7 +52,7 @@
 
 /* Light mode: warm beige ground, white panels, deeper amber accent. */
 :root:not(.dark) {
-  --color-canvas: #f3efe7;
+  --color-canvas: #fdfaf2;
   --color-surface: #ffffff;
   --color-surface-raised: #ffffff;
   --color-surface-sunken: #ebe5da;

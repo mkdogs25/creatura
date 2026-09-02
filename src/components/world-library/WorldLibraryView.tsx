@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BookOpen, MapPin, Plus, User, X } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { useEditorStore } from '@/store/editorStore';
@@ -15,7 +15,12 @@ import { MapBuilder } from '@/components/map/MapBuilder';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
 import { Drawer } from '@/components/ui/Drawer';
+import { ResizeHandle } from '@/components/ui/ResizeHandle';
+import { FocusEdgePanel } from '@/components/ui/FocusEdgePanel';
 import { cn } from '@/utils/cn';
+
+const LEFT_WIDTH = { min: 200, max: 460 };
+const RIGHT_WIDTH = { min: 240, max: 520 };
 
 /**
  * The primary workspace: library on the left, manuscript in the middle,
@@ -44,6 +49,8 @@ export function WorldLibraryView() {
 
   const interfaceSettings = useSettingsStore((s) => s.settings.interface);
   const showToolbar = useSettingsStore((s) => s.settings.editor.showToolbar);
+  const updateSettings = useSettingsStore((s) => s.update);
+  const [resizing, setResizing] = useState<'left' | 'right' | null>(null);
 
   const doc = useMemo(() => docById(bundle, activeDocId), [bundle, activeDocId]);
   const documents = useMemo(() => allDocs(bundle), [bundle]);
@@ -64,8 +71,9 @@ export function WorldLibraryView() {
       <aside
         aria-label="Project library"
         className={cn(
-          'shrink-0 overflow-hidden border-r border-[var(--color-line)] bg-[var(--color-surface)] transition-[width,opacity] duration-200 ease-[var(--ease-out-soft)]',
-          showLeft ? 'opacity-100' : 'w-0 border-r-0 opacity-0',
+          'shrink-0 overflow-hidden bg-[var(--color-surface)] ease-[var(--ease-out-soft)]',
+          resizing === 'left' ? '' : 'transition-[width,opacity] duration-200',
+          showLeft ? 'opacity-100' : 'w-0 opacity-0',
         )}
         style={{ width: showLeft ? interfaceSettings.leftPanelWidth : 0 }}
       >
@@ -76,18 +84,49 @@ export function WorldLibraryView() {
           </div>
         )}
       </aside>
+      {showLeft && (
+        <ResizeHandle
+          side="left"
+          label="Resize library panel"
+          value={interfaceSettings.leftPanelWidth}
+          min={LEFT_WIDTH.min}
+          max={LEFT_WIDTH.max}
+          onChange={(leftPanelWidth) => updateSettings('interface', { leftPanelWidth })}
+          onDragStart={() => setResizing('left')}
+          onDragEnd={() => setResizing(null)}
+        />
+      )}
 
-      {/* Centre panel — the manuscript. Never unmounted. */}
-      <main className="flex min-w-0 flex-1 flex-col bg-[var(--color-canvas)]">
-        {focusMode && (
-          <div className="flex shrink-0 items-center justify-between px-4 py-2">
+      {/* Focus mode: panels stay off-screen until the cursor lingers at an edge. */}
+      {focusMode && (
+        <FocusEdgePanel edge="top" size={showToolbar ? 88 : 45}>
+          <div className="flex h-11 shrink-0 items-center justify-between px-4">
             <span className="type-label truncate">{doc?.name ?? 'Focus'}</span>
             <Button variant="ghost" size="sm" onClick={() => setFocusMode(false)}>
               <X size={13} />
               Exit focus · Esc
             </Button>
           </div>
-        )}
+          {showToolbar && (
+            <div className="border-t border-[var(--color-line)]">
+              <EditorToolbar editor={editor} />
+            </div>
+          )}
+        </FocusEdgePanel>
+      )}
+      {focusMode && (
+        <FocusEdgePanel edge="left" size={interfaceSettings.leftPanelWidth}>
+          <FolderTree />
+        </FocusEdgePanel>
+      )}
+      {focusMode && doc && (
+        <FocusEdgePanel edge="right" size={interfaceSettings.rightPanelWidth}>
+          <MetadataPanel />
+        </FocusEdgePanel>
+      )}
+
+      {/* Centre panel — the manuscript. Never unmounted. */}
+      <main className="flex min-w-0 flex-1 flex-col bg-[var(--color-canvas)]">
 
         {doc && !focusMode && <DocumentHeader doc={doc} />}
 
@@ -158,11 +197,24 @@ export function WorldLibraryView() {
       </main>
 
       {/* Right panel — details */}
+      {showRight && (
+        <ResizeHandle
+          side="right"
+          label="Resize details panel"
+          value={interfaceSettings.rightPanelWidth}
+          min={RIGHT_WIDTH.min}
+          max={RIGHT_WIDTH.max}
+          onChange={(rightPanelWidth) => updateSettings('interface', { rightPanelWidth })}
+          onDragStart={() => setResizing('right')}
+          onDragEnd={() => setResizing(null)}
+        />
+      )}
       <aside
         aria-label="Entry details"
         className={cn(
-          'shrink-0 overflow-hidden border-l border-[var(--color-line)] bg-[var(--color-surface)] transition-[width,opacity] duration-200 ease-[var(--ease-out-soft)]',
-          showRight ? 'opacity-100' : 'w-0 border-l-0 opacity-0',
+          'shrink-0 overflow-hidden bg-[var(--color-surface)] ease-[var(--ease-out-soft)]',
+          resizing === 'right' ? '' : 'transition-[width,opacity] duration-200',
+          showRight ? 'opacity-100' : 'w-0 opacity-0',
         )}
         style={{ width: showRight ? interfaceSettings.rightPanelWidth : 0 }}
       >
