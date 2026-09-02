@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Copy,
   Download,
+  FolderUp,
   Plus,
   Trash2,
   Upload,
@@ -69,6 +70,12 @@ export function ProjectMenu() {
       onSelect: () => setProjectDialogOpen(true),
     },
     { id: 'import', label: 'Import project…', icon: Upload, onSelect: actions.importProject },
+    {
+      id: 'import-folder',
+      label: 'Import folder as project…',
+      icon: FolderUp,
+      onSelect: actions.importFolderAsProject,
+    },
     ...(current
       ? [
           { id: 's2', separator: true } as MenuEntry,

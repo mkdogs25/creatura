@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronRight, FolderTree, Upload } from 'lucide-react';
+import { ChevronRight, FolderTree, FolderUp, Upload } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { useUiStore } from '@/store/uiStore';
 import { useEditorStore } from '@/store/editorStore';
@@ -22,7 +22,7 @@ export function ProjectDialog() {
   const toast = useUiStore((s) => s.toast);
   const createProject = useProjectStore((s) => s.createProject);
   const setActiveDoc = useEditorStore((s) => s.setActiveDoc);
-  const { importProject } = useProjectActions();
+  const { importProject, importFolderAsProject } = useProjectActions();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -65,17 +65,28 @@ export function ProjectDialog() {
       size="lg"
       footer={
         <>
-          <Button
-            variant="ghost"
-            onClick={async () => {
-              const imported = await importProject();
-              if (imported) setOpen(false);
-            }}
-            className="mr-auto"
-          >
-            <Upload size={13} />
-            Import a file instead
-          </Button>
+          <div className="mr-auto flex items-center gap-1">
+            <Button
+              variant="ghost"
+              onClick={async () => {
+                const imported = await importProject();
+                if (imported) setOpen(false);
+              }}
+            >
+              <Upload size={13} />
+              Import a file
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={async () => {
+                const imported = await importFolderAsProject();
+                if (imported) setOpen(false);
+              }}
+            >
+              <FolderUp size={13} />
+              Import a folder
+            </Button>
+          </div>
           <Button variant="ghost" onClick={() => setOpen(false)}>
             Cancel
           </Button>

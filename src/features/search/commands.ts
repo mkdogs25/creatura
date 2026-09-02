@@ -5,6 +5,7 @@ import {
   FilePlus2,
   FileUp,
   FolderPlus,
+  FolderUp,
   Grid3x3,
   MapPin,
   Moon,
@@ -38,6 +39,7 @@ export interface CommandContext {
   exportProject: () => void;
   importProject: () => void;
   importMarkdownNotes: () => void;
+  importFolderAsProject: () => void;
 }
 
 /**
@@ -163,6 +165,14 @@ export function buildCommands(context: CommandContext): Command[] {
       icon: FileUp,
       keywords: 'md text file note obsidian',
       run: () => context.importMarkdownNotes(),
+    },
+    {
+      id: 'import-folder',
+      label: 'Import Folder as Project',
+      group: 'Project',
+      icon: FolderUp,
+      keywords: 'vault obsidian directory markdown new',
+      run: () => context.importFolderAsProject(),
     },
   ];
 }

@@ -66,6 +66,58 @@ export function pickTextFiles(
   });
 }
 
+export interface PickedFolderFile {
+  /** Path within the chosen folder, subfolders included — e.g. "Lore/Tides.md". */
+  relativePath: string;
+  text: string;
+}
+
+/**
+ * Opens a directory picker and returns every markdown file inside it —
+ * subfolders included — for building a whole project from an uploaded folder.
+ *
+ * `webkitdirectory`/`directory` are non-standard but supported by every
+ * current browser for exactly this purpose; there is no standard equivalent.
+ * Each selected file's `webkitRelativePath` is what preserves the folder
+ * structure, so the caller can rebuild it as real Creatura folders.
+ */
+export function pickMarkdownFolder(): Promise<{
+  rootName: string;
+  files: PickedFolderFile[];
+}> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.setAttribute('webkitdirectory', '');
+    input.setAttribute('directory', '');
+    input.onchange = async () => {
+      const all = input.files ? Array.from(input.files) : [];
+      if (all.length === 0) {
+        resolve({ rootName: '', files: [] });
+        return;
+      }
+      const relativePathOf = (file: File) =>
+        (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+
+      const markdown = all.filter((file) => /\.(md|markdown|mdown)$/i.test(file.name));
+      const read = await Promise.allSettled(
+        markdown.map(async (file) => ({ relativePath: relativePathOf(file), text: await file.text() })),
+      );
+      const files = read
+        .filter((result): result is PromiseFulfilledResult<PickedFolderFile> => result.status === 'fulfilled')
+        .map((result) => result.value);
+
+      // The first path segment is the folder the user actually picked; every
+      // file shares it, even if none of them happened to be markdown.
+      const rootName = relativePathOf(all[0]).split('/')[0] || 'Imported folder';
+      resolve({ rootName, files });
+    };
+    input.oncancel = () => resolve({ rootName: '', files: [] });
+    input.click();
+  });
+}
+
 /** Reads an image file as a data URL, for map backgrounds. */
 export function pickImageAsDataUrl(): Promise<string | null> {
   return new Promise((resolve) => {

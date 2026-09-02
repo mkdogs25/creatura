@@ -5,7 +5,8 @@ import { useUiStore } from '@/store/uiStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useNavigation } from '@/hooks/useNavigation';
 import { bundleToExport, filenameFor, parseProjectFile } from '@/features/projects/portability';
-import { downloadTextFile, pickTextFile, pickTextFiles } from '@/utils/download';
+import { buildProjectFromFolder } from '@/features/projects/folderImport';
+import { downloadTextFile, pickMarkdownFolder, pickTextFile, pickTextFiles } from '@/utils/download';
 import { markdownToDoc, titleFromFilename } from '@/utils/markdown';
 import type { DocKind, ThemeMode, ViewId } from '@/types/domain';
 
@@ -183,6 +184,39 @@ export function useProjectActions() {
     [createDocInStore, setActiveDoc, setView, toast],
   );
 
+  /**
+   * Uploads a whole folder and turns it into a brand-new project: its
+   * subfolders become Creatura folders and every markdown file inside
+   * becomes a note, in place. Returns whether a project was actually
+   * created, so callers can tell a cancelled picker from a real import.
+   */
+  const importFolderAsProject = useCallback(async (): Promise<boolean> => {
+    const { rootName, files } = await pickMarkdownFolder();
+    if (files.length === 0) {
+      if (rootName) {
+        toast({
+          tone: 'error',
+          title: 'No markdown files found',
+          body: `“${rootName}” doesn't contain any .md or .markdown files.`,
+        });
+      }
+      return false;
+    }
+
+    const bundle = buildProjectFromFolder(rootName, files);
+    await importBundle(bundle);
+    setActiveDoc(bundle.notes[0]?.id ?? null);
+    setView('library');
+    toast({
+      tone: 'success',
+      title: `Imported “${bundle.project.name}”`,
+      body: `${bundle.notes.length} ${bundle.notes.length === 1 ? 'note' : 'notes'} across ${
+        bundle.folders.length
+      } ${bundle.folders.length === 1 ? 'folder' : 'folders'}.`,
+    });
+    return true;
+  }, [importBundle, setActiveDoc, setView, toast]);
+
   return useMemo(
     () => ({
       createDoc,
@@ -195,6 +229,7 @@ export function useProjectActions() {
       exportProject,
       importProject,
       importMarkdownNotes,
+      importFolderAsProject,
     }),
     [
       createDoc,
@@ -207,6 +242,7 @@ export function useProjectActions() {
       exportProject,
       importProject,
       importMarkdownNotes,
+      importFolderAsProject,
     ],
   );
 }

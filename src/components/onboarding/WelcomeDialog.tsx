@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, Grid3x3, Sparkles, Timer, Upload } from 'lucide-react';
+import { BookOpen, FolderUp, Grid3x3, Sparkles, Timer, Upload } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { useUiStore } from '@/store/uiStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -42,7 +42,7 @@ export function WelcomeDialog() {
   const updateSettings = useSettingsStore((s) => s.update);
   const importBundle = useProjectStore((s) => s.importBundle);
   const setActiveDoc = useEditorStore((s) => s.setActiveDoc);
-  const { importProject } = useProjectActions();
+  const { importProject, importFolderAsProject } = useProjectActions();
   const [busy, setBusy] = useState(false);
 
   const finish = () => {
@@ -76,6 +76,17 @@ export function WelcomeDialog() {
       // Cancelling the file picker or an invalid file both resolve false —
       // either way the welcome screen should stay put rather than vanish.
       const imported = await importProject();
+      if (imported) finish();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const importFolder = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const imported = await importFolderAsProject();
       if (imported) finish();
     } finally {
       setBusy(false);
@@ -134,6 +145,10 @@ export function WelcomeDialog() {
           <Button variant="secondary" size="lg" onClick={importExisting} disabled={busy}>
             <Upload size={14} />
             Import a project file
+          </Button>
+          <Button variant="secondary" size="lg" onClick={importFolder} disabled={busy}>
+            <FolderUp size={14} />
+            Import a folder of notes
           </Button>
           <Button variant="ghost" size="lg" onClick={finish}>
             Skip

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, BookOpen, Loader2, Plus, Sparkles, Upload } from 'lucide-react';
+import { AlertTriangle, BookOpen, FolderUp, Loader2, Plus, Sparkles, Upload } from 'lucide-react';
 import { openDatabase } from '@/db/database';
 import { useProjectStore } from '@/store/projectStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -139,7 +139,7 @@ function ProjectGate({ children }: { children: React.ReactNode }) {
   const setProjectDialogOpen = useUiStore((s) => s.setProjectDialogOpen);
   const importBundle = useProjectStore((s) => s.importBundle);
   const setActiveDoc = useEditorStore((s) => s.setActiveDoc);
-  const { importProject } = useProjectActions();
+  const { importProject, importFolderAsProject } = useProjectActions();
 
   if (!dbReady && view !== 'settings') {
     return (
@@ -191,6 +191,10 @@ function ProjectGate({ children }: { children: React.ReactNode }) {
         <Button variant="secondary" onClick={() => void importProject()}>
           <Upload size={14} />
           Import a project file
+        </Button>
+        <Button variant="secondary" onClick={() => void importFolderAsProject()}>
+          <FolderUp size={14} />
+          Import a folder of notes
         </Button>
       </EmptyState>
     );
