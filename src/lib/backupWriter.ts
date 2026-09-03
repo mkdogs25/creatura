@@ -90,7 +90,13 @@ export async function writeProjectBackup(
 
   const uniqueName = nameAllocator();
   const tagNameById = new Map(bundle.tags.map((tag) => [tag.id, tag.name]));
-  const allDocs: AnyDoc[] = [...bundle.characters, ...bundle.locations, ...bundle.notes];
+  const allDocs: AnyDoc[] = [
+    ...bundle.characters,
+    ...bundle.locations,
+    ...bundle.creatures,
+    ...bundle.tech,
+    ...bundle.notes,
+  ];
   const nameById = new Map(allDocs.map((doc) => [doc.id, doc.name]));
   const resolveEntity = (entityId: string, fallback: string) => nameById.get(entityId) ?? fallback;
 

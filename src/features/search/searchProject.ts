@@ -6,6 +6,8 @@ import { snippetAround } from '@/utils/text';
 export type SearchResultType =
   | 'character'
   | 'location'
+  | 'creature'
+  | 'tech'
   | 'note'
   | 'folder'
   | 'event'
@@ -26,6 +28,8 @@ const TYPE_WEIGHT: Record<SearchResultType, number> = {
   character: 6,
   location: 5,
   chapter: 5,
+  creature: 4,
+  tech: 4,
   note: 4,
   event: 4,
   folder: 2,

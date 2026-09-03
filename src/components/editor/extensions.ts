@@ -10,6 +10,7 @@ import { MentionSuggestion, WikiLinkSuggestion } from '@/editor/extensions/menti
 import { AutoCapitalize } from '@/editor/extensions/autoCapitalize';
 import { FindReplace } from '@/editor/extensions/findReplace';
 import { PasteCleanup } from '@/editor/extensions/pasteCleanup';
+import { GrammarCheck } from '@/editor/extensions/grammarCheck';
 import type { WritingSettings } from '@/types/domain';
 
 /**
@@ -61,6 +62,7 @@ export function buildExtensions(writing: WritingSettings): Extensions {
     WikiLinkSuggestion,
     FindReplace,
     PasteCleanup,
+    GrammarCheck,
     ...(writing.autoCapitalize ? [AutoCapitalize] : []),
   ];
 }

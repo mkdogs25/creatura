@@ -8,10 +8,16 @@ import type {
   TimelineEvent,
 } from '@/types/domain';
 
-/** All documents across the three tables, in one list. */
+/** All documents across every table, in one list. */
 export function allDocs(bundle: ProjectBundle | null): AnyDoc[] {
   if (!bundle) return [];
-  return [...bundle.characters, ...bundle.locations, ...bundle.notes];
+  return [
+    ...bundle.characters,
+    ...bundle.locations,
+    ...bundle.creatures,
+    ...bundle.tech,
+    ...bundle.notes,
+  ];
 }
 
 export function docById(bundle: ProjectBundle | null, id: string | null): AnyDoc | null {
@@ -19,6 +25,8 @@ export function docById(bundle: ProjectBundle | null, id: string | null): AnyDoc
   return (
     bundle.characters.find((d) => d.id === id) ??
     bundle.locations.find((d) => d.id === id) ??
+    bundle.creatures.find((d) => d.id === id) ??
+    bundle.tech.find((d) => d.id === id) ??
     bundle.notes.find((d) => d.id === id) ??
     null
   );
@@ -197,6 +205,8 @@ export interface ProjectStats {
   notes: number;
   characters: number;
   locations: number;
+  creatures: number;
+  tech: number;
   folders: number;
   events: number;
   tags: number;
@@ -216,6 +226,8 @@ export function projectStats(bundle: ProjectBundle | null): ProjectStats {
       notes: 0,
       characters: 0,
       locations: 0,
+      creatures: 0,
+      tech: 0,
       folders: 0,
       events: 0,
       tags: 0,
@@ -233,6 +245,8 @@ export function projectStats(bundle: ProjectBundle | null): ProjectStats {
     notes: bundle.notes.length,
     characters: bundle.characters.length,
     locations: bundle.locations.length,
+    creatures: bundle.creatures.length,
+    tech: bundle.tech.length,
     folders: bundle.folders.length,
     events: bundle.events.length,
     tags: bundle.tags.length,

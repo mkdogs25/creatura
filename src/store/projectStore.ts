@@ -1,12 +1,20 @@
 import { create } from 'zustand';
-import { defaultCharacterProfile } from '@/types/domain';
+import {
+  defaultCharacterProfile,
+  defaultCreatureProfile,
+  defaultLocationProfile,
+  defaultTechProfile,
+} from '@/types/domain';
 import type {
   AnyDoc,
   CharacterDoc,
   CharacterProfile,
+  CreatureDoc,
+  CreatureProfile,
   DocKind,
   Folder,
   LocationDoc,
+  LocationProfile,
   ManuscriptChapter,
   MapMarker,
   MapStamp,
@@ -22,6 +30,8 @@ import type {
   Settings,
   StoryMap,
   Tag,
+  TechDoc,
+  TechProfile,
   TemplateId,
   TerrainKind,
   TimelineEvent,
@@ -56,10 +66,25 @@ import { colorForKey } from '@/utils/color';
 import { countWords, docToPlainText, emptyDoc, makeExcerpt } from '@/utils/text';
 import { buildProjectFromTemplate } from '@/data/templates';
 
-const DOC_TABLE: Record<DocKind, 'characters' | 'locations' | 'notes'> = {
+const DOC_TABLE: Record<DocKind, 'characters' | 'locations' | 'creatures' | 'tech' | 'notes'> = {
   character: 'characters',
   location: 'locations',
+  creature: 'creatures',
+  tech: 'tech',
   note: 'notes',
+};
+
+/** Which field on each kind's profile is the single "category" value (mirrored
+ * as one tag, swapped on change) and which is the comma/line list (mirrored as
+ * several tags, diffed on change) — the same idea as Character's Role and
+ * Personality Traits, generalised for the other structured-profile kinds. */
+const PROFILE_TAG_FIELDS: Record<
+  'location' | 'creature' | 'tech',
+  { category: string; list: string }
+> = {
+  location: { category: 'type', list: 'notableFeatures' },
+  creature: { category: 'species', list: 'abilities' },
+  tech: { category: 'category', list: 'properties' },
 };
 
 interface CreateProjectInput {
@@ -98,6 +123,13 @@ interface ProjectState {
   /** Patches a character's structured profile — also keeps `name` in sync
    * with the name fields, and mirrors Role/Personality Traits as tags. */
   updateCharacterProfile: (docId: string, patch: Partial<CharacterProfile>) => void;
+  /** Patches a location, creature or tech doc's structured profile — mirrors
+   * its category and list fields as tags, the same idea as the character
+   * version but without name composition (these kinds are named plainly). */
+  updateEntityProfile: (
+    docId: string,
+    patch: Partial<LocationProfile> | Partial<CreatureProfile> | Partial<TechProfile>,
+  ) => void;
   updateDocContent: (docId: string, content: RichContent) => void;
   restoreSnapshot: (docId: string, content: RichContent) => void;
   deleteDoc: (docId: string) => void;
@@ -217,9 +249,19 @@ function makeBaseDoc(
     createdAt: now,
     updatedAt: now,
   };
-  if (kind === 'location') return { ...base, kind: 'location', mapId: null } as LocationDoc;
+  if (kind === 'location')
+    return {
+      ...base,
+      kind: 'location',
+      mapId: null,
+      profile: defaultLocationProfile(),
+    } as LocationDoc;
   if (kind === 'character')
     return { ...base, kind: 'character', profile: defaultCharacterProfile() } as CharacterDoc;
+  if (kind === 'creature')
+    return { ...base, kind: 'creature', profile: defaultCreatureProfile() } as CreatureDoc;
+  if (kind === 'tech')
+    return { ...base, kind: 'tech', profile: defaultTechProfile() } as TechDoc;
   return { ...base, kind: 'note' } as NoteDoc;
 }
 
@@ -237,7 +279,14 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 
   const findDoc = (bundle: ProjectBundle, docId: string): AnyDoc | null => {
     const kind = kindOfId(docId);
-    if (kind !== 'character' && kind !== 'location' && kind !== 'note') return null;
+    if (
+      kind !== 'character' &&
+      kind !== 'location' &&
+      kind !== 'creature' &&
+      kind !== 'tech' &&
+      kind !== 'note'
+    )
+      return null;
     const list = bundle[DOC_TABLE[kind]] as AnyDoc[];
     return list.find((doc) => doc.id === docId) ?? null;
   };
@@ -341,6 +390,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       source.folders.forEach((f) => register(f.id));
       source.characters.forEach((d) => register(d.id));
       source.locations.forEach((d) => register(d.id));
+      source.creatures.forEach((d) => register(d.id));
+      source.tech.forEach((d) => register(d.id));
       source.notes.forEach((d) => register(d.id));
       source.tags.forEach((t) => register(t.id));
       source.relationships.forEach((r) => register(r.id));
@@ -388,6 +439,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           ...reDoc(l),
           mapId: l.mapId ? remap(l.mapId) : null,
         })),
+        creatures: source.creatures.map(reDoc),
+        tech: source.tech.map(reDoc),
         notes: source.notes.map(reDoc),
         tags: source.tags.map((t) => ({ ...t, id: remap(t.id), projectId: projectId2 })),
         relationships: source.relationships.map((r) => ({
@@ -597,6 +650,56 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       write(() => putDoc(next));
     },
 
+    updateEntityProfile: (docId, patch) => {
+      const bundle = get().bundle;
+      if (!bundle) return;
+      const kind = kindOfId(docId);
+      if (kind !== 'location' && kind !== 'creature' && kind !== 'tech') return;
+      const list = bundle[DOC_TABLE[kind]] as Array<
+        (LocationDoc | CreatureDoc | TechDoc) & { profile: Record<string, string> }
+      >;
+      const current = list.find((d) => d.id === docId);
+      if (!current) return;
+
+      const patchRecord = patch as Record<string, string>;
+      const nextProfile = { ...current.profile, ...patchRecord };
+      let tagIds = current.tagIds;
+
+      const detachTagNamed = (name: string) => {
+        const clean = name.trim().toLowerCase();
+        if (!clean) return;
+        const tag = get().bundle?.tags.find((t) => t.name.toLowerCase() === clean);
+        if (tag) tagIds = tagIds.filter((id) => id !== tag.id);
+      };
+      const attachTagNamed = (name: string) => {
+        const clean = name.trim();
+        if (!clean) return;
+        const id = get().createTag(clean);
+        if (id && !tagIds.includes(id)) tagIds = [...tagIds, id];
+      };
+
+      // Same idea as Character's Role/Personality Traits: the category field
+      // mirrors as a single swapped tag, the list field as several diffed ones.
+      const { category, list: listField } = PROFILE_TAG_FIELDS[kind];
+      if (patchRecord[category] !== undefined && patchRecord[category] !== current.profile[category]) {
+        detachTagNamed(current.profile[category]);
+        attachTagNamed(patchRecord[category]);
+      }
+      if (patchRecord[listField] !== undefined) {
+        const oldItems = splitTraits(current.profile[listField]);
+        const newItems = splitTraits(patchRecord[listField]);
+        const newLower = new Set(newItems.map((t) => t.toLowerCase()));
+        for (const item of oldItems) {
+          if (!newLower.has(item.toLowerCase())) detachTagNamed(item);
+        }
+        for (const item of newItems) attachTagNamed(item);
+      }
+
+      const next = { ...current, profile: nextProfile, tagIds, updatedAt: Date.now() } as AnyDoc;
+      set((state) => patchBundle(state, (b) => replaceDoc(b, next)));
+      write(() => putDoc(next));
+    },
+
     updateDocContent: (docId, content) => {
       const bundle = get().bundle;
       if (!bundle) return;
@@ -786,24 +889,28 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         }
       }
 
-      const allDocs: AnyDoc[] = [...bundle.characters, ...bundle.locations, ...bundle.notes];
+      const allDocs: AnyDoc[] = [
+        ...bundle.characters,
+        ...bundle.locations,
+        ...bundle.creatures,
+        ...bundle.tech,
+        ...bundle.notes,
+      ];
       const orphaned = allDocs.filter((doc) => doc.folderId && doomed.has(doc.folderId));
 
       // Documents survive their folder — they move to the project root so a
       // mis-click can never destroy prose.
+      const clearFolder = <T extends { folderId: string | null }>(docs: T[]): T[] =>
+        docs.map((d) => (d.folderId && doomed.has(d.folderId) ? { ...d, folderId: null } : d));
       set((state) =>
         patchBundle(state, (b) => ({
           ...b,
           folders: b.folders.filter((f) => !doomed.has(f.id)),
-          characters: b.characters.map((d) =>
-            d.folderId && doomed.has(d.folderId) ? { ...d, folderId: null } : d,
-          ),
-          locations: b.locations.map((d) =>
-            d.folderId && doomed.has(d.folderId) ? { ...d, folderId: null } : d,
-          ),
-          notes: b.notes.map((d) =>
-            d.folderId && doomed.has(d.folderId) ? { ...d, folderId: null } : d,
-          ),
+          characters: clearFolder(b.characters),
+          locations: clearFolder(b.locations),
+          creatures: clearFolder(b.creatures),
+          tech: clearFolder(b.tech),
+          notes: clearFolder(b.notes),
           project: touchProject(b),
         })),
       );
@@ -893,6 +1000,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           tags: b.tags.filter((t) => t.id !== tagId),
           characters: strip(b.characters),
           locations: strip(b.locations),
+          creatures: strip(b.creatures),
+          tech: strip(b.tech),
           notes: strip(b.notes),
           events: strip(b.events),
           cells: strip(b.cells),
@@ -903,7 +1012,13 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       write(async () => {
         await deleteRecord('tags', tagId);
         if (!after) return;
-        const docs: AnyDoc[] = [...after.characters, ...after.locations, ...after.notes];
+        const docs: AnyDoc[] = [
+          ...after.characters,
+          ...after.locations,
+          ...after.creatures,
+          ...after.tech,
+          ...after.notes,
+        ];
         await Promise.all([
           ...docs.map((doc) => putDoc(doc)),
           ...after.events.map((event) => putRecord('events', event)),
@@ -1514,6 +1629,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 function defaultDocName(kind: DocKind): string {
   if (kind === 'character') return 'New character';
   if (kind === 'location') return 'New location';
+  if (kind === 'creature') return 'New creature';
+  if (kind === 'tech') return 'New tech';
   return 'Untitled note';
 }
 
@@ -1544,6 +1661,8 @@ export const PROJECT_COLLECTIONS: ProjectTableName[] = [
   'folders',
   'characters',
   'locations',
+  'creatures',
+  'tech',
   'notes',
   'tags',
   'relationships',

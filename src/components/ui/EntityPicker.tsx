@@ -1,12 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, FileText, MapPin, Search, User, X } from 'lucide-react';
+import { Check, ChevronDown, Cpu, FileText, MapPin, PawPrint, Search, User, X } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { allDocs } from '@/store/selectors';
 import type { AnyDoc, DocKind } from '@/types/domain';
 import { fuzzyRank } from '@/utils/fuzzy';
 import { cn } from '@/utils/cn';
 
-const ICONS = { character: User, location: MapPin, note: FileText };
+const ICONS = { character: User, location: MapPin, creature: PawPrint, tech: Cpu, note: FileText };
 
 interface EntityPickerProps {
   value: string[];

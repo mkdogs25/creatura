@@ -108,6 +108,8 @@ export function buildProjectFromFolder(
     folders,
     characters: [],
     locations: [],
+    creatures: [],
+    tech: [],
     notes,
     tags: [],
     relationships: [],

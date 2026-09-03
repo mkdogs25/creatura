@@ -14,6 +14,21 @@ const FONT_STACK: Record<string, string> = {
   mono: 'var(--font-mono)',
 };
 
+/**
+ * Chrome and Firefox only run spellcheck on text as it's typed — content set
+ * programmatically (loading a document, restoring a snapshot) never gets
+ * checked until the browser is nudged into re-scanning it. Toggling the
+ * attribute off and back on is the standard workaround: it forces a full
+ * re-check of whatever's currently in the element.
+ */
+function refreshSpellcheck(dom: HTMLElement, enabled: boolean): void {
+  dom.spellcheck = false;
+  if (!enabled) return;
+  requestAnimationFrame(() => {
+    dom.spellcheck = true;
+  });
+}
+
 interface ManuscriptEditorProps {
   /** Id of whatever is open — a World Library doc, or a manuscript chapter. */
   activeId: string | null;
@@ -132,6 +147,8 @@ export function ManuscriptEditor({
       | undefined;
     setCounts(storage?.words() ?? 0, storage?.characters() ?? 0);
     setDirty(false);
+    // Freshly-loaded text needs a nudge — see `refreshSpellcheck`.
+    refreshSpellcheck(editor.view.dom as HTMLElement, editorSettings.spellcheck);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, activeId, reloadToken, save, setCounts, setDirty]);
 
@@ -146,13 +163,15 @@ export function ManuscriptEditor({
     };
   }, [save]);
 
-  // Spellcheck and typewriter mode are DOM attributes on the same instance.
+  // Spellcheck, grammar check and typewriter mode are DOM attributes/classes
+  // on the same instance.
   useEffect(() => {
     if (!editor) return;
     const dom = editor.view.dom as HTMLElement;
-    dom.setAttribute('spellcheck', String(editorSettings.spellcheck));
+    refreshSpellcheck(dom, editorSettings.spellcheck);
+    dom.classList.toggle('grammarcheck-off', !editorSettings.grammarCheck);
     dom.classList.toggle('is-typewriter', editorSettings.typewriterMode);
-  }, [editor, editorSettings.spellcheck, editorSettings.typewriterMode]);
+  }, [editor, editorSettings.spellcheck, editorSettings.grammarCheck, editorSettings.typewriterMode]);
 
   // Typewriter mode: keep the caret near the middle of the viewport.
   useEffect(() => {
@@ -177,6 +196,7 @@ export function ManuscriptEditor({
     '--editor-size': `${editorSettings.fontSize}px`,
     '--editor-leading': String(editorSettings.lineHeight),
     '--editor-measure': `${editorSettings.writingWidth}px`,
+    '--editor-margin-x': `${editorSettings.marginX}px`,
     '--editor-paragraph-gap': String(editorSettings.paragraphSpacing),
   } as React.CSSProperties;
 

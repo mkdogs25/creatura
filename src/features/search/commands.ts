@@ -5,6 +5,7 @@ import {
   BookText,
   CalendarPlus,
   Copy,
+  Cpu,
   Database,
   Download,
   FilePlus2,
@@ -21,6 +22,7 @@ import {
   Palette,
   PanelLeft,
   PanelRight,
+  PawPrint,
   PenLine,
   FileType,
   Plus,
@@ -50,7 +52,7 @@ export interface Command {
 }
 
 export interface CommandContext {
-  createDoc: (kind: 'note' | 'character' | 'location') => void;
+  createDoc: (kind: 'note' | 'character' | 'location' | 'creature' | 'tech') => void;
   createFolder: () => void;
   createTag: () => void;
   createEvent: () => void;
@@ -107,6 +109,22 @@ export function buildCommands(context: CommandContext): Command[] {
       icon: MapPin,
       keywords: 'new place setting map',
       run: () => context.createDoc('location'),
+    },
+    {
+      id: 'create-creature',
+      label: 'Create Creature',
+      group: 'Create',
+      icon: PawPrint,
+      keywords: 'new monster beast animal',
+      run: () => context.createDoc('creature'),
+    },
+    {
+      id: 'create-tech',
+      label: 'Create Tech',
+      group: 'Create',
+      icon: Cpu,
+      keywords: 'new artifact item device gadget invention',
+      run: () => context.createDoc('tech'),
     },
     {
       id: 'create-note',

@@ -54,9 +54,13 @@ export function useProjectActions() {
   const createDoc = useCallback(
     (kind: DocKind) => {
       const current = activeDocId
-        ? [...(bundle?.characters ?? []), ...(bundle?.locations ?? []), ...(bundle?.notes ?? [])].find(
-            (doc) => doc.id === activeDocId,
-          )
+        ? [
+            ...(bundle?.characters ?? []),
+            ...(bundle?.locations ?? []),
+            ...(bundle?.creatures ?? []),
+            ...(bundle?.tech ?? []),
+            ...(bundle?.notes ?? []),
+          ].find((doc) => doc.id === activeDocId)
         : null;
 
       const folderId =
@@ -64,7 +68,7 @@ export function useProjectActions() {
       const id = createDocInStore({ kind, folderId });
       if (!id) return;
 
-      if (current && current.kind !== kind && (kind === 'character' || kind === 'location')) {
+      if (current && current.kind !== kind && kind !== 'note') {
         useProjectStore.getState().createRelationship({
           fromId: id,
           toId: current.id,
@@ -435,7 +439,13 @@ function defaultFolderFor(
   if (!bundle) return null;
   const byDefaultKind = bundle.folders.find((folder) => folder.defaultKind === kind);
   if (byDefaultKind) return byDefaultKind.id;
-  const nameGuess = { character: 'characters', location: 'locations', note: 'notes' }[kind];
+  const nameGuess = {
+    character: 'characters',
+    location: 'locations',
+    creature: 'creatures',
+    tech: 'technology',
+    note: 'notes',
+  }[kind];
   const byName = bundle.folders.find((folder) => folder.name.toLowerCase() === nameGuess);
   return byName?.id ?? null;
 }

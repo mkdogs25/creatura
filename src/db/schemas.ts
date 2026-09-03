@@ -7,7 +7,13 @@
  * optional fields get defaults rather than rejecting the record outright.
  */
 import { z } from 'zod';
-import { SCHEMA_VERSION, defaultCharacterProfile } from '@/types/domain';
+import {
+  SCHEMA_VERSION,
+  defaultCharacterProfile,
+  defaultCreatureProfile,
+  defaultLocationProfile,
+  defaultTechProfile,
+} from '@/types/domain';
 import type { RichContent } from '@/types/domain';
 
 const timestamp = z.number().finite().nonnegative();
@@ -63,10 +69,59 @@ export const characterSchema = z.object({
   profile: characterProfileSchema.default(defaultCharacterProfile),
 });
 
+export const locationProfileSchema = z
+  .object({
+    type: z.string().catch(''),
+    climate: z.string().catch(''),
+    population: z.string().catch(''),
+    government: z.string().catch(''),
+    dangerLevel: z.string().catch(''),
+    notableFeatures: z.string().catch(''),
+    atmosphere: z.string().catch(''),
+  })
+  .catch(defaultLocationProfile);
+
 export const locationSchema = z.object({
   ...baseDocShape,
   kind: z.literal('location').catch('location'),
   mapId: id.nullable().catch(null),
+  profile: locationProfileSchema.default(defaultLocationProfile),
+});
+
+export const creatureProfileSchema = z
+  .object({
+    species: z.string().catch(''),
+    habitat: z.string().catch(''),
+    diet: z.string().catch(''),
+    size: z.string().catch(''),
+    threatLevel: z.string().catch(''),
+    abilities: z.string().catch(''),
+    physicalFeatures: z.string().catch(''),
+  })
+  .catch(defaultCreatureProfile);
+
+export const creatureSchema = z.object({
+  ...baseDocShape,
+  kind: z.literal('creature').catch('creature'),
+  profile: creatureProfileSchema.default(defaultCreatureProfile),
+});
+
+export const techProfileSchema = z
+  .object({
+    category: z.string().catch(''),
+    origin: z.string().catch(''),
+    rarity: z.string().catch(''),
+    powerSource: z.string().catch(''),
+    function: z.string().catch(''),
+    properties: z.string().catch(''),
+    limitations: z.string().catch(''),
+  })
+  .catch(defaultTechProfile);
+
+export const techSchema = z.object({
+  ...baseDocShape,
+  kind: z.literal('tech').catch('tech'),
+  profile: techProfileSchema.default(defaultTechProfile),
 });
 
 export const noteSchema = z.object({
@@ -79,7 +134,7 @@ export const folderSchema = z.object({
   projectId: id,
   parentId: id.nullable().catch(null),
   name: z.string().catch('Untitled folder'),
-  defaultKind: z.enum(['note', 'character', 'location']).catch('note'),
+  defaultKind: z.enum(['note', 'character', 'location', 'creature', 'tech']).catch('note'),
   icon: z.string().catch('folder'),
   color: z.string().nullable().catch(null),
   order: z.number().catch(0),
@@ -266,8 +321,10 @@ export const settingsSchema = z.object({
       fontSize: z.number().min(13).max(26).catch(18),
       lineHeight: z.number().min(1.2).max(2.4).catch(1.7),
       writingWidth: z.number().min(480).max(1100).catch(720),
+      marginX: z.number().min(0).max(160).catch(24),
       paragraphSpacing: z.number().min(0).max(2).catch(0.75),
       spellcheck: z.boolean().catch(true),
+      grammarCheck: z.boolean().catch(true),
       showWordCount: z.boolean().catch(true),
       showCharCount: z.boolean().catch(true),
       showToolbar: z.boolean().catch(true),
@@ -278,8 +335,10 @@ export const settingsSchema = z.object({
       fontSize: 18,
       lineHeight: 1.7,
       writingWidth: 720,
+      marginX: 24,
       paragraphSpacing: 0.75,
       spellcheck: true,
+      grammarCheck: true,
       showWordCount: true,
       showCharCount: true,
       showToolbar: true,
@@ -290,7 +349,7 @@ export const settingsSchema = z.object({
       autosave: z.boolean().catch(true),
       autosaveDelay: z.number().min(200).max(5000).catch(700),
       wordGoal: z.number().int().min(0).max(200000).catch(0),
-      defaultDocKind: z.enum(['note', 'character', 'location']).catch('note'),
+      defaultDocKind: z.enum(['note', 'character', 'location', 'creature', 'tech']).catch('note'),
       smartQuotes: z.boolean().catch(true),
       emDashes: z.boolean().catch(true),
       autoCapitalize: z.boolean().catch(false),
@@ -342,6 +401,8 @@ export const projectExportSchema = z.object({
   folders: z.array(folderSchema).catch([]),
   characters: z.array(characterSchema).catch([]),
   locations: z.array(locationSchema).catch([]),
+  creatures: z.array(creatureSchema).catch([]),
+  tech: z.array(techSchema).catch([]),
   notes: z.array(noteSchema).catch([]),
   tags: z.array(tagSchema).catch([]),
   relationships: z.array(relationshipSchema).catch([]),

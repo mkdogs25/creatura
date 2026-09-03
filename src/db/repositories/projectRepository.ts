@@ -2,6 +2,7 @@ import { db, PROJECT_TABLES } from '@/db/database';
 import {
   chapterSchema,
   characterSchema,
+  creatureSchema,
   eventSchema,
   folderSchema,
   locationSchema,
@@ -17,15 +18,18 @@ import {
   sectionSchema,
   settingsSchema,
   tagSchema,
+  techSchema,
   terrainStrokeSchema,
 } from '@/db/schemas';
 import type {
   CharacterDoc,
+  CreatureDoc,
   LocationDoc,
   NoteDoc,
   Project,
   ProjectBundle,
   Settings,
+  TechDoc,
 } from '@/types/domain';
 import { defaultSettings } from '@/data/defaultSettings';
 
@@ -54,6 +58,8 @@ export async function loadProjectBundle(projectId: string): Promise<ProjectBundl
     folders,
     characters,
     locations,
+    creatures,
+    tech,
     notes,
     tags,
     relationships,
@@ -70,6 +76,8 @@ export async function loadProjectBundle(projectId: string): Promise<ProjectBundl
     where(db.folders),
     where(db.characters),
     where(db.locations),
+    where(db.creatures),
+    where(db.tech),
     where(db.notes),
     where(db.tags),
     where(db.relationships),
@@ -89,6 +97,8 @@ export async function loadProjectBundle(projectId: string): Promise<ProjectBundl
     folders: parseAll(folderSchema, folders, 'folder'),
     characters: parseAll(characterSchema, characters, 'character') as CharacterDoc[],
     locations: parseAll(locationSchema, locations, 'location') as LocationDoc[],
+    creatures: parseAll(creatureSchema, creatures, 'creature') as CreatureDoc[],
+    tech: parseAll(techSchema, tech, 'tech') as TechDoc[],
     notes: parseAll(noteSchema, notes, 'note') as NoteDoc[],
     tags: parseAll(tagSchema, tags, 'tag'),
     relationships: parseAll(relationshipSchema, relationships, 'relationship'),
@@ -114,6 +124,8 @@ export async function saveProjectBundle(bundle: ProjectBundle): Promise<void> {
       await db.folders.bulkPut(bundle.folders);
       await db.characters.bulkPut(bundle.characters);
       await db.locations.bulkPut(bundle.locations);
+      await db.creatures.bulkPut(bundle.creatures);
+      await db.tech.bulkPut(bundle.tech);
       await db.notes.bulkPut(bundle.notes);
       await db.tags.bulkPut(bundle.tags);
       await db.relationships.bulkPut(bundle.relationships);

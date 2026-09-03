@@ -60,6 +60,9 @@
 
   --color-danger: #c77a6c;
   --color-success: #86a672;
+  /* Grammar/style flags — a distinct hue from the accent, so they never read
+     as a spelling error (native red) or a highlighted match (accent gold). */
+  --color-grammar: #7fa6c9;
 
   --radius-panel: 0.5rem;
   --radius-control: 0.375rem;
@@ -92,6 +95,7 @@
 
   --color-danger: #a23e2e;
   --color-success: #4f6b3f;
+  --color-grammar: #3d6690;
 
   --shadow-panel: 0 1px 2px rgb(61 38 28 / 0.08), 0 8px 24px -14px rgb(61 38 28 / 0.25);
   --shadow-float: 0 14px 44px -14px rgb(61 38 28 / 0.32);

@@ -1,7 +1,7 @@
 import { docToPlainText } from '@/utils/text';
 import type { AnyDoc, CharacterProfile, RichContent } from '@/types/domain';
 
-type NameSource = Pick<AnyDoc, 'kind' | 'name'> & { profile?: CharacterProfile };
+type NameSource = Pick<AnyDoc, 'kind' | 'name'> & { profile?: unknown };
 
 /**
  * Expands a project's character/location names into every first/last-word
@@ -28,7 +28,7 @@ export function expandKnownNames(docs: NameSource[]): string[] {
     }
 
     if (doc.kind !== 'character' || !doc.profile) continue;
-    const { title, firstName, middleName, lastName } = doc.profile;
+    const { title, firstName, middleName, lastName } = doc.profile as CharacterProfile;
     if (firstName) names.add(firstName);
     if (lastName) names.add(lastName);
     if (firstName && lastName) names.add(`${firstName} ${lastName}`);

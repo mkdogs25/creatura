@@ -2,6 +2,7 @@ import Dexie, { type Table } from 'dexie';
 import { applyMigrations } from '@/db/migrations';
 import type {
   CharacterDoc,
+  CreatureDoc,
   DocSnapshot,
   Folder,
   LocationDoc,
@@ -16,6 +17,7 @@ import type {
   Relationship,
   Settings,
   StoryMap,
+  TechDoc,
   TimelineEvent,
   TimelineSection,
 } from '@/types/domain';
@@ -48,6 +50,8 @@ export class CreaturaDatabase extends Dexie {
   folders!: Table<Folder, string>;
   characters!: Table<CharacterDoc, string>;
   locations!: Table<LocationDoc, string>;
+  creatures!: Table<CreatureDoc, string>;
+  tech!: Table<TechDoc, string>;
   notes!: Table<NoteDoc, string>;
   tags!: Table<import('@/types/domain').Tag, string>;
   relationships!: Table<Relationship, string>;
@@ -78,6 +82,8 @@ export const PROJECT_TABLES = [
   'folders',
   'characters',
   'locations',
+  'creatures',
+  'tech',
   'notes',
   'tags',
   'relationships',

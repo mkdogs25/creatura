@@ -60,7 +60,13 @@ export function useNavigation() {
         openChapter(entityId);
         return;
       }
-      if (kind === 'character' || kind === 'location' || kind === 'note') {
+      if (
+        kind === 'character' ||
+        kind === 'location' ||
+        kind === 'creature' ||
+        kind === 'tech' ||
+        kind === 'note'
+      ) {
         const exists = useProjectStore.getState().bundle;
         if (exists) openDoc(entityId);
         return;

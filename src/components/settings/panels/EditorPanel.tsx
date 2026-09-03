@@ -70,6 +70,15 @@ export function EditorPanel() {
           format={(value) => `${value}px`}
         />
         <Slider
+          label="Margins"
+          value={editor.marginX}
+          min={0}
+          max={160}
+          step={4}
+          onChange={(marginX) => update('editor', { marginX })}
+          format={(value) => `${value}px`}
+        />
+        <Slider
           label="Paragraph spacing"
           value={editor.paragraphSpacing}
           min={0}
@@ -106,6 +115,12 @@ export function EditorPanel() {
           label="Spellcheck"
           checked={editor.spellcheck}
           onChange={(spellcheck) => update('editor', { spellcheck })}
+        />
+        <Switch
+          label="Grammar check"
+          description="Flags repeated words, common mistakes and punctuation — click a flagged word to fix it."
+          checked={editor.grammarCheck}
+          onChange={(grammarCheck) => update('editor', { grammarCheck })}
         />
         <Switch
           label="Typewriter focus"

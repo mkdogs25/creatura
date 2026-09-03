@@ -12,7 +12,7 @@
   color: var(--color-ink);
   max-width: var(--editor-measure, 720px);
   margin: 0 auto;
-  padding: 0 1.5rem 40vh;
+  padding: 0 var(--editor-margin-x, 1.5rem) 40vh;
   outline: none;
 }
 
@@ -167,6 +167,19 @@
 .creatura-prose.is-typewriter {
   padding-bottom: 50vh;
   padding-top: 28vh;
+}
+
+/* ── Grammar & style check ─────────────────────────────────────────────── */
+
+.grammar-flag {
+  text-decoration: underline wavy var(--color-grammar, var(--color-accent));
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.creatura-prose.grammarcheck-off .grammar-flag {
+  text-decoration: none;
+  cursor: text;
 }
 
 .ProseMirror-gapcursor:after {

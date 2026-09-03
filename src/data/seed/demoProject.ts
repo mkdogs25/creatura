@@ -1,7 +1,10 @@
 import type {
   CharacterDoc,
   CharacterProfile,
+  CreatureDoc,
+  CreatureProfile,
   LocationDoc,
+  LocationProfile,
   ManuscriptChapter,
   MapMarker,
   MapStamp,
@@ -15,10 +18,18 @@ import type {
   RichContent,
   StoryMap,
   Tag,
+  TechDoc,
+  TechProfile,
   TimelineEvent,
   TimelineSection,
 } from '@/types/domain';
-import { SCHEMA_VERSION, defaultCharacterProfile } from '@/types/domain';
+import {
+  SCHEMA_VERSION,
+  defaultCharacterProfile,
+  defaultCreatureProfile,
+  defaultLocationProfile,
+  defaultTechProfile,
+} from '@/types/domain';
 import { newId } from '@/utils/id';
 import { countWords, docToPlainText, makeExcerpt } from '@/utils/text';
 import { materializeFolders, templateById } from '@/data/templates';
@@ -40,8 +51,13 @@ interface DocSpec {
   folder: string;
   tags?: string[];
   fields?: Array<[label: string, value: string]>;
-  /** Character-only: the structured profile fields. */
-  profile?: Partial<CharacterProfile>;
+  /** The structured profile fields — shape depends on which kind's array this
+   * spec lives in (Character/Location/Creature/Tech). */
+  profile?:
+    | Partial<CharacterProfile>
+    | Partial<LocationProfile>
+    | Partial<CreatureProfile>
+    | Partial<TechProfile>;
   /** Paragraphs; `@key` inside a paragraph becomes an entity reference node. */
   body: string[];
 }
@@ -197,6 +213,15 @@ const LOCATIONS: DocSpec[] = [
       ['Region', 'The Wrack Coast'],
       ['Population', '~80,000'],
     ],
+    profile: {
+      type: 'City',
+      climate: 'Temperate, humid',
+      population: '~80,000',
+      government: 'The Order of the Tide',
+      dangerLevel: 'Moderate — the tide, not the streets',
+      notableFeatures: 'Slag-glass terraces, the seawall, the lower streets that flood twice daily',
+      atmosphere: 'Accidental glitter over a city that governs itself around the water.',
+    },
     body: [
       'Built on the slag of four hundred years of foundry work, the Glass City glitters in a way that is entirely accidental and universally claimed as design. Its lower streets are given over to the sea for six hours out of every twelve.',
       'The Order of the Tide governs from the upper terraces. The archive, the quay and the lanterns belong to the water.',
@@ -211,6 +236,14 @@ const LOCATIONS: DocSpec[] = [
       ['Status', 'Drowned'],
       ['Region', 'Outer Wrack'],
     ],
+    profile: {
+      type: 'Ruin',
+      climate: 'Submerged',
+      population: '0',
+      dangerLevel: 'Ships give it a wide berth',
+      notableFeatures: 'A shoal where a city used to be, lanterns still lit below the waterline',
+      atmosphere: 'A drowned namesake nobody living has actually seen.',
+    },
     body: [
       'The city the @elysia was named for, and the reason she has spent her whole life explaining that she is not from there. It went under in a single winter and is now a shoal that ships give a wide berth.',
     ],
@@ -224,6 +257,13 @@ const LOCATIONS: DocSpec[] = [
       ['Status', 'Standing'],
       ['Region', 'Inland'],
     ],
+    profile: {
+      type: 'Region',
+      climate: 'Cold, inland valleys',
+      dangerLevel: 'Low',
+      notableFeatures: 'No coastline for two hundred miles, a borrowed word for "ocean"',
+      atmosphere: 'Quiet and unbothered by the tide that defines everywhere else in this story.',
+    },
     body: [
       'Cold valleys, borrowed words, and no coastline for two hundred miles. @elysia came south at nineteen and has been asked to explain herself ever since.',
     ],
@@ -237,6 +277,14 @@ const LOCATIONS: DocSpec[] = [
       ['Status', 'Flooding',],
       ['Region', 'Glass City, lower terraces'],
     ],
+    profile: {
+      type: 'Building',
+      climate: 'Damp, tidal',
+      government: 'The Tidal Archive',
+      dangerLevel: 'Low, if you can swim',
+      notableFeatures: 'Nine landings, four underwater at any given hour',
+      atmosphere: 'A library that floods twice a day and keeps cataloguing anyway.',
+    },
     body: [
       'Nine landings cut into the cliff, of which four are underwater at any given hour. @mira keeps the archive here, on the theory that anything worth preserving should be worth carrying upstairs twice a day.',
     ],
@@ -250,8 +298,59 @@ const LOCATIONS: DocSpec[] = [
       ['Status', 'Standing'],
       ['Region', 'Glass City, waterline'],
     ],
+    profile: {
+      type: 'Landmark',
+      climate: 'Coastal, foggy',
+      dangerLevel: 'Contested — the Order rarely posts a watch here',
+      notableFeatures: 'Eleven lanterns, one seawall',
+      atmosphere: 'The one stretch of the city that still feels like it belongs to everyone.',
+    },
     body: [
       'Eleven lanterns, one seawall, and the only stretch of the city where the Order has never managed to post a permanent watch. @elysia works here. So, less officially, does everyone else.',
+    ],
+  },
+];
+
+const CREATURES: DocSpec[] = [
+  {
+    key: 'chalkkeeper',
+    name: 'The Chalk-Keeper',
+    folder: 'Creatures',
+    tags: ['Legend'],
+    profile: {
+      species: 'Sea Spirit',
+      habitat: 'The harbour depths',
+      diet: 'Unknown',
+      size: 'Unknown',
+      threatLevel: 'Unknown',
+      abilities: 'Extends the count, Never seen directly',
+      physicalFeatures: 'Never directly seen — only the wake it leaves behind, and the lights that stay lit when they shouldn’t.',
+    },
+    body: [
+      'Nobody living has seen it. What they have is the count: eleven lights, every night, for longer than the chalk on the seawall can remember — until the night @elysia counts nine.',
+      'Lanternwrights disagree on whether it keeps the harbour safe or merely keeps score. Nobody has proposed finding out which.',
+    ],
+  },
+];
+
+const TECH: DocSpec[] = [
+  {
+    key: 'blueoil',
+    name: 'Blue Oil Lantern',
+    folder: 'Objects',
+    tags: ['Craft'],
+    profile: {
+      category: 'Tool',
+      origin: 'The Lanternwright guild',
+      rarity: 'Common, within Glass City',
+      powerSource: 'Refined blue oil',
+      function: 'Burns cold and slow, visible through fog at a distance no white flame manages.',
+      properties: 'Fog-piercing, Cold-burning',
+      limitations: 'Blue oil is expensive to refine and burns out faster than it looks like it should.',
+    },
+    body: [
+      'The standard harbour lantern, and the reason @elysia has a job at all. Every one of them burns the same blue-white cold flame, which is either alchemy or tradition depending which lanternwright you ask.',
+      'Eleven of them line the seawall at @lanternquay. Counting how many are lit is older than anyone currently doing the counting.',
     ],
   },
 ];
@@ -490,6 +589,7 @@ const TAG_NAMES = [
   'Harbour',
   'Faction',
   'Craft',
+  'Legend',
   'Draft',
   'Act One',
   'Act Two',
@@ -571,6 +671,14 @@ export function buildDemoProject(): ProjectBundle {
     idByKey.set(spec.key, newId('location'));
     nameByKey.set(spec.key, spec.name);
   });
+  CREATURES.forEach((spec) => {
+    idByKey.set(spec.key, newId('creature'));
+    nameByKey.set(spec.key, spec.name);
+  });
+  TECH.forEach((spec) => {
+    idByKey.set(spec.key, newId('tech'));
+    nameByKey.set(spec.key, spec.name);
+  });
   NOTES.forEach((spec) => {
     idByKey.set(spec.key, newId('note'));
     nameByKey.set(spec.key, spec.name);
@@ -629,6 +737,19 @@ export function buildDemoProject(): ProjectBundle {
     ...buildDoc(spec, i),
     kind: 'location' as const,
     mapId: map.id,
+    profile: { ...defaultLocationProfile(), ...(spec.profile as Partial<LocationProfile>) },
+  }));
+
+  const creatures: CreatureDoc[] = CREATURES.map((spec, i) => ({
+    ...buildDoc(spec, i),
+    kind: 'creature' as const,
+    profile: { ...defaultCreatureProfile(), ...(spec.profile as Partial<CreatureProfile>) },
+  }));
+
+  const tech: TechDoc[] = TECH.map((spec, i) => ({
+    ...buildDoc(spec, i),
+    kind: 'tech' as const,
+    profile: { ...defaultTechProfile(), ...(spec.profile as Partial<TechProfile>) },
   }));
 
   const notes: NoteDoc[] = NOTES.map((spec, i) => ({
@@ -861,6 +982,8 @@ export function buildDemoProject(): ProjectBundle {
     folders,
     characters,
     locations,
+    creatures,
+    tech,
     notes,
     tags,
     relationships,

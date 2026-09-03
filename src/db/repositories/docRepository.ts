@@ -6,6 +6,8 @@ import { kindOfId } from '@/utils/id';
 export function tableForKind(kind: DocKind) {
   if (kind === 'character') return db.characters;
   if (kind === 'location') return db.locations;
+  if (kind === 'creature') return db.creatures;
+  if (kind === 'tech') return db.tech;
   return db.notes;
 }
 
@@ -21,6 +23,13 @@ export async function putDocs(docs: AnyDoc[]): Promise<void> {
 
 export async function deleteDoc(docId: string): Promise<void> {
   const kind = kindOfId(docId);
-  if (kind !== 'character' && kind !== 'location' && kind !== 'note') return;
+  if (
+    kind !== 'character' &&
+    kind !== 'location' &&
+    kind !== 'creature' &&
+    kind !== 'tech' &&
+    kind !== 'note'
+  )
+    return;
   await tableForKind(kind).delete(docId);
 }

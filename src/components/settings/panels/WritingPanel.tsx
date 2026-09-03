@@ -63,6 +63,8 @@ export function WritingPanel() {
               <option value="note">Note</option>
               <option value="character">Character</option>
               <option value="location">Location</option>
+              <option value="creature">Creature</option>
+              <option value="tech">Tech</option>
             </Select>
           </Field>
         </div>

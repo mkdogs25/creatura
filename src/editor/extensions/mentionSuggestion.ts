@@ -11,6 +11,8 @@ import type { AnyDoc, DocKind } from '@/types/domain';
 const KIND_LABEL: Record<string, string> = {
   character: 'Character',
   location: 'Location',
+  creature: 'Creature',
+  tech: 'Tech',
   note: 'Note',
 };
 
@@ -167,15 +169,16 @@ function createEntityLinkExtension(
 }
 
 /**
- * The `@` autocomplete — characters and locations only, not notes (a note
- * isn't someone or somewhere the prose is talking *about* the way a mention
- * implies). Matches by full name, first name, last name or initials
- * ("e.a." or "ea" both reach "Elysia Ambrose"), and inserts a reference that
- * displays just the resolved first name, so "@e.a." becomes "@Elysia" in the
- * text — still a live link to the full character underneath.
+ * The `@` autocomplete — characters, locations, creatures and tech, not
+ * notes (a note isn't someone or somewhere the prose is talking *about* the
+ * way a mention implies, but a named beast or artifact is). Matches by full
+ * name, first name, last name or initials ("e.a." or "ea" both reach "Elysia
+ * Ambrose"), and inserts a reference that displays just the resolved first
+ * name, so "@e.a." becomes "@Elysia" in the text — still a live link to the
+ * full entity underneath.
  */
 export const MentionSuggestion = createEntityLinkExtension('mentionSuggestion', '@', {
-  kinds: ['character', 'location'],
+  kinds: ['character', 'location', 'creature', 'tech'],
   short: true,
 });
 

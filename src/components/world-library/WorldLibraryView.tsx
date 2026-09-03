@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, MapPin, PanelLeft, Plus, User, X } from 'lucide-react';
+import { BookOpen, Cpu, MapPin, PanelLeft, PawPrint, Plus, User, X } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useUiStore } from '@/store/uiStore';
@@ -9,6 +9,9 @@ import { FolderTree } from '@/components/world-library/FolderTree';
 import { DocumentHeader } from '@/components/world-library/DocumentHeader';
 import { DocumentTabs } from '@/components/world-library/DocumentTabs';
 import { ProfileFields } from '@/components/metadata/ProfileFields';
+import { LocationProfileFields } from '@/components/metadata/LocationProfileFields';
+import { CreatureProfileFields } from '@/components/metadata/CreatureProfileFields';
+import { TechProfileFields } from '@/components/metadata/TechProfileFields';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { ManuscriptEditor } from '@/components/editor/ManuscriptEditor';
 import { EditorToolbar } from '@/components/editor/EditorToolbar';
@@ -112,7 +115,7 @@ export function WorldLibraryView() {
               Exit focus · Esc
             </Button>
           </div>
-          {showToolbar && (
+          {showToolbar && doc?.kind !== 'character' && (
             <div className="border-t border-[var(--color-line)]">
               <EditorToolbar editor={editor} />
             </div>
@@ -151,12 +154,23 @@ export function WorldLibraryView() {
         {!focusMode && <DocumentTabs />}
 
         {doc && !focusMode && <DocumentHeader doc={doc} />}
-        {doc && doc.kind === 'character' && !focusMode && <ProfileFields doc={doc} />}
+        {doc && doc.kind === 'location' && !focusMode && <LocationProfileFields doc={doc} />}
+        {doc && doc.kind === 'creature' && !focusMode && <CreatureProfileFields doc={doc} />}
+        {doc && doc.kind === 'tech' && !focusMode && <TechProfileFields doc={doc} />}
 
         <div className={cn('flex min-h-0 flex-1', showMap ? 'flex-col xl:flex-row' : '')}>
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            {/* Characters have no prose editor — the profile fields are the
+                whole editing surface, so they render here instead. */}
+            {doc && doc.kind === 'character' && !focusMode && <ProfileFields doc={doc} />}
+
             {/* The editor stays mounted; only its visibility changes. */}
-            <div className={cn('flex min-h-0 flex-1 flex-col', !doc && 'hidden')}>
+            <div
+              className={cn(
+                'flex min-h-0 flex-1 flex-col',
+                (!doc || doc.kind === 'character') && 'hidden',
+              )}
+            >
               {showToolbar && !focusMode && (
                 <div className="shrink-0 border-b border-[var(--color-line)]">
                   <EditorToolbar editor={editor} />
@@ -196,6 +210,20 @@ export function WorldLibraryView() {
                 >
                   <MapPin size={14} />
                   Create location
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setActiveDoc(createDoc({ kind: 'creature' }))}
+                >
+                  <PawPrint size={14} />
+                  Create creature
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setActiveDoc(createDoc({ kind: 'tech' }))}
+                >
+                  <Cpu size={14} />
+                  Create tech
                 </Button>
                 <Button
                   variant="secondary"

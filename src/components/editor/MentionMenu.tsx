@@ -1,12 +1,14 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FileText, MapPin, User } from 'lucide-react';
+import { Cpu, FileText, MapPin, PawPrint, User } from 'lucide-react';
 import { useMentionStore } from '@/editor/extensions/mentionState';
 import { cn } from '@/utils/cn';
 
 const ICONS = {
   character: User,
   location: MapPin,
+  creature: PawPrint,
+  tech: Cpu,
   note: FileText,
 };
 

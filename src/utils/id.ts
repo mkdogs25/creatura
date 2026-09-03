@@ -4,6 +4,8 @@ const PREFIX: Record<EntityKind, string> = {
   note: 'note',
   character: 'character',
   location: 'location',
+  creature: 'creature',
+  tech: 'tech',
   folder: 'folder',
   tag: 'tag',
   event: 'event',
@@ -47,5 +49,11 @@ export function kindOfId(id: string | null | undefined): EntityKind | null {
 
 export function isDocId(id: string | null | undefined): boolean {
   const kind = kindOfId(id);
-  return kind === 'note' || kind === 'character' || kind === 'location';
+  return (
+    kind === 'note' ||
+    kind === 'character' ||
+    kind === 'location' ||
+    kind === 'creature' ||
+    kind === 'tech'
+  );
 }

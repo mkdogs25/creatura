@@ -2,11 +2,13 @@ import { projectExportSchema } from '@/db/schemas';
 import { SCHEMA_VERSION } from '@/types/domain';
 import type {
   CharacterDoc,
+  CreatureDoc,
   LocationDoc,
   NoteDoc,
   ProjectBundle,
   ProjectExport,
   RichContent,
+  TechDoc,
 } from '@/types/domain';
 import { loadProjectBundle } from '@/db/repositories/projectRepository';
 import { newId, kindOfId } from '@/utils/id';
@@ -21,6 +23,8 @@ export function bundleToExport(bundle: ProjectBundle): ProjectExport {
     folders: bundle.folders,
     characters: bundle.characters,
     locations: bundle.locations,
+    creatures: bundle.creatures,
+    tech: bundle.tech,
     notes: bundle.notes,
     tags: bundle.tags,
     relationships: bundle.relationships,
@@ -136,6 +140,8 @@ export function parseProjectFile(text: string): ImportResult {
   const folders = dedupe(data.folders);
   const characters = dedupe(data.characters);
   const locations = dedupe(data.locations);
+  const creatures = dedupe(data.creatures);
+  const tech = dedupe(data.tech);
   const notes = dedupe(data.notes);
   const tags = dedupe(data.tags);
   const relationships = dedupe(data.relationships);
@@ -179,7 +185,9 @@ export function parseProjectFile(text: string): ImportResult {
   };
 
   /** Re-points a document's folder, tags and inline references. */
-  const fixDoc = <T extends CharacterDoc | LocationDoc | NoteDoc>(doc: T): T => ({
+  const fixDoc = <T extends CharacterDoc | LocationDoc | CreatureDoc | TechDoc | NoteDoc>(
+    doc: T,
+  ): T => ({
     ...doc,
     folderId: ref(doc.folderId),
     tagIds: doc.tagIds.map(ref).filter((id): id is string => id !== null),
@@ -201,6 +209,8 @@ export function parseProjectFile(text: string): ImportResult {
       ...fixDoc(location),
       mapId: ref(location.mapId),
     })),
+    creatures: creatures.map(fixDoc),
+    tech: tech.map(fixDoc),
     notes: notes.map(fixDoc),
     tags,
     relationships: relationships.flatMap((relationship) => {

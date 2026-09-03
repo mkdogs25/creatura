@@ -1,12 +1,14 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
   ChevronRight,
+  Cpu,
   FilePlus2,
   FileText,
   FileUp,
   FolderPlus,
   MapPin,
   PanelLeftClose,
+  PawPrint,
   Pencil,
   Trash2,
   User,
@@ -30,7 +32,13 @@ import { Button } from '@/components/ui/Button';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { cn } from '@/utils/cn';
 
-export const DOC_ICON = { character: User, location: MapPin, note: FileText };
+export const DOC_ICON = {
+  character: User,
+  location: MapPin,
+  creature: PawPrint,
+  tech: Cpu,
+  note: FileText,
+};
 
 interface DragPayload {
   type: 'doc' | 'folder';
@@ -245,6 +253,18 @@ function FolderRow({
       label: 'New location here',
       icon: MapPin,
       onSelect: () => addDoc('location'),
+    },
+    {
+      id: 'creature',
+      label: 'New creature here',
+      icon: PawPrint,
+      onSelect: () => addDoc('creature'),
+    },
+    {
+      id: 'tech',
+      label: 'New tech here',
+      icon: Cpu,
+      onSelect: () => addDoc('tech'),
     },
     {
       id: 'subfolder',

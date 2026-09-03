@@ -31,6 +31,8 @@ const FIELD_SUGGESTIONS: Record<DocKind, string[]> = {
     'Relationship Status',
   ],
   location: ['Status', 'Region', 'Population', 'Ruler', 'First Appearance', 'Climate'],
+  creature: ['Status', 'Habitat', 'Threat Level', 'First Appearance', 'Importance'],
+  tech: ['Status', 'Origin', 'Rarity', 'First Appearance', 'Importance'],
   note: ['Status', 'Category', 'Source', 'Importance'],
 };
 

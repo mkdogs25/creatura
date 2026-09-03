@@ -48,4 +48,11 @@ export function applyMigrations(db: Dexie): void {
     terrain: 'id, projectId, mapId, order',
     stamps: 'id, projectId, mapId, order',
   });
+
+  // v6 — creatures and tech/artifacts as first-class document kinds,
+  // alongside characters and locations.
+  db.version(6).stores({
+    creatures: 'id, projectId, folderId, name, order',
+    tech: 'id, projectId, folderId, name, order',
+  });
 }

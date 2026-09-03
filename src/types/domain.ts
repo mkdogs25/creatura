@@ -14,8 +14,8 @@ export type ThemeMode = 'dark' | 'light' | 'system';
 export type Density = 'compact' | 'comfortable';
 export type ViewId = 'library' | 'timeline' | 'manuscript' | 'matrix' | 'settings';
 
-/** The three kinds of writable document that live in the folder tree. */
-export type DocKind = 'note' | 'character' | 'location';
+/** The kinds of writable document that live in the folder tree. */
+export type DocKind = 'note' | 'character' | 'location' | 'creature' | 'tech';
 
 /** Everything addressable by a stable id. */
 export type EntityKind =
@@ -115,17 +115,112 @@ export interface CharacterDoc extends BaseDoc {
   profile: CharacterProfile;
 }
 
+/**
+ * A structured location profile — mirrors the character profile pattern so
+ * "what kind of place is this" and "what does it feel like to be there"
+ * have real fields instead of living only in prose or generic metadata.
+ */
+export interface LocationProfile {
+  /** City, region, building, wilderness… free text, mirrored as a tag. */
+  type: string;
+  climate: string;
+  population: string;
+  /** Ruling authority — a monarch, a council, an occupying power. */
+  government: string;
+  dangerLevel: string;
+  /** Comma- or line-separated, each mirrored as a tag — landmarks, quirks. */
+  notableFeatures: string;
+  /** What it feels like to be there, free text. */
+  atmosphere: string;
+}
+
+export function defaultLocationProfile(): LocationProfile {
+  return {
+    type: '',
+    climate: '',
+    population: '',
+    government: '',
+    dangerLevel: '',
+    notableFeatures: '',
+    atmosphere: '',
+  };
+}
+
 export interface LocationDoc extends BaseDoc {
   kind: 'location';
   /** Optional map this location is depicted on. */
   mapId: string | null;
+  profile: LocationProfile;
+}
+
+/** A structured profile for a creature, monster, beast or other non-sapient
+ * (or non-humanoid) inhabitant of the world — the same idea as a character
+ * profile, sized for something that isn't given a name-in-parts. */
+export interface CreatureProfile {
+  /** Beast, monster, familiar, spirit… free text, mirrored as a tag. */
+  species: string;
+  habitat: string;
+  diet: string;
+  size: string;
+  threatLevel: string;
+  /** Comma- or line-separated, each mirrored as a tag. */
+  abilities: string;
+  physicalFeatures: string;
+}
+
+export function defaultCreatureProfile(): CreatureProfile {
+  return {
+    species: '',
+    habitat: '',
+    diet: '',
+    size: '',
+    threatLevel: '',
+    abilities: '',
+    physicalFeatures: '',
+  };
+}
+
+export interface CreatureDoc extends BaseDoc {
+  kind: 'creature';
+  profile: CreatureProfile;
+}
+
+/** A structured profile for a piece of technology, a magic item, a
+ * vehicle or artifact — anything made rather than born. */
+export interface TechProfile {
+  /** Weapon, vehicle, device, artifact… free text, mirrored as a tag. */
+  category: string;
+  origin: string;
+  rarity: string;
+  powerSource: string;
+  function: string;
+  /** Comma- or line-separated, each mirrored as a tag. */
+  properties: string;
+  limitations: string;
+}
+
+export function defaultTechProfile(): TechProfile {
+  return {
+    category: '',
+    origin: '',
+    rarity: '',
+    powerSource: '',
+    function: '',
+    properties: '',
+    limitations: '',
+  };
+}
+
+export interface TechDoc extends BaseDoc {
+  kind: 'tech';
+  profile: TechProfile;
 }
 
 export interface NoteDoc extends BaseDoc {
   kind: 'note';
 }
 
-export type AnyDoc = CharacterDoc | LocationDoc | NoteDoc;
+export type AnyDoc = CharacterDoc | LocationDoc | CreatureDoc | TechDoc | NoteDoc;
 
 export interface Folder {
   id: string;
@@ -367,8 +462,11 @@ export interface EditorSettings {
   fontSize: number;
   lineHeight: number;
   writingWidth: number;
+  /** Left/right padding of the writing column, in pixels. */
+  marginX: number;
   paragraphSpacing: number;
   spellcheck: boolean;
+  grammarCheck: boolean;
   showWordCount: boolean;
   showCharCount: boolean;
   showToolbar: boolean;
@@ -423,6 +521,8 @@ export interface ProjectExport {
   folders: Folder[];
   characters: CharacterDoc[];
   locations: LocationDoc[];
+  creatures: CreatureDoc[];
+  tech: TechDoc[];
   notes: NoteDoc[];
   tags: Tag[];
   relationships: Relationship[];
@@ -443,6 +543,8 @@ export interface ProjectBundle {
   folders: Folder[];
   characters: CharacterDoc[];
   locations: LocationDoc[];
+  creatures: CreatureDoc[];
+  tech: TechDoc[];
   notes: NoteDoc[];
   tags: Tag[];
   relationships: Relationship[];
