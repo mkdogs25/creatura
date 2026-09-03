@@ -1,5 +1,5 @@
 import { docToPlainText } from '@/utils/text';
-import type { AnyDoc, CharacterProfile, RichContent } from '@/types/domain';
+import type { AnyDoc, Profile, RichContent } from '@/types/domain';
 
 type NameSource = Pick<AnyDoc, 'kind' | 'name'> & { profile?: unknown };
 
@@ -28,7 +28,7 @@ export function expandKnownNames(docs: NameSource[]): string[] {
     }
 
     if (doc.kind !== 'character' || !doc.profile) continue;
-    const { title, firstName, middleName, lastName } = doc.profile as CharacterProfile;
+    const { title, firstName, middleName, lastName } = doc.profile as Profile;
     if (firstName) names.add(firstName);
     if (lastName) names.add(lastName);
     if (firstName && lastName) names.add(`${firstName} ${lastName}`);

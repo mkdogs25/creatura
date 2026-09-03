@@ -87,6 +87,14 @@ export function pluralize(count: number, singular: string, plural = `${singular}
   return `${count.toLocaleString()} ${count === 1 ? singular : plural}`;
 }
 
+/** Best-effort "Characters" → "Character" — category names are stored
+ * plural ("Characters", "Artifacts"); this recovers a singular for labels
+ * like "New Character here" without a separate stored field. Cosmetic
+ * only — an irregular plural just reads a little oddly, nothing breaks. */
+export function singularize(name: string): string {
+  return name.endsWith('s') ? name.slice(0, -1) : name;
+}
+
 export function formatNumber(value: number): string {
   return value.toLocaleString();
 }

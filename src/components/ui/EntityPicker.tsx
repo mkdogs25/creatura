@@ -1,12 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, Cpu, FileText, MapPin, PawPrint, Search, User, X } from 'lucide-react';
+import { Check, ChevronDown, Search, X } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { allDocs } from '@/store/selectors';
+import { docIcon } from '@/components/world-library/FolderTree';
 import type { AnyDoc, DocKind } from '@/types/domain';
 import { fuzzyRank } from '@/utils/fuzzy';
 import { cn } from '@/utils/cn';
-
-const ICONS = { character: User, location: MapPin, creature: PawPrint, tech: Cpu, note: FileText };
 
 interface EntityPickerProps {
   value: string[];
@@ -75,7 +74,7 @@ export function EntityPicker({
         onClick={() => setOpen(true)}
       >
         {selected.map((doc) => {
-          const Icon = ICONS[doc.kind];
+          const Icon = docIcon(bundle, doc);
           return (
             <span
               key={doc.id}
@@ -139,7 +138,7 @@ export function EntityPicker({
             </p>
           ) : (
             pool.map((doc) => {
-              const Icon = ICONS[doc.kind];
+              const Icon = docIcon(bundle, doc);
               const isSelected = value.includes(doc.id);
               return (
                 <button

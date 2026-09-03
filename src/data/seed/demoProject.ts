@@ -1,10 +1,7 @@
 import type {
   CharacterDoc,
-  CharacterProfile,
   CreatureDoc,
-  CreatureProfile,
   LocationDoc,
-  LocationProfile,
   ManuscriptChapter,
   MapMarker,
   MapStamp,
@@ -12,6 +9,7 @@ import type {
   MatrixCell,
   NoteDoc,
   PointOfView,
+  Profile,
   Project,
   ProjectBundle,
   Relationship,
@@ -19,17 +17,10 @@ import type {
   StoryMap,
   Tag,
   TechDoc,
-  TechProfile,
   TimelineEvent,
   TimelineSection,
 } from '@/types/domain';
-import {
-  SCHEMA_VERSION,
-  defaultCharacterProfile,
-  defaultCreatureProfile,
-  defaultLocationProfile,
-  defaultTechProfile,
-} from '@/types/domain';
+import { SCHEMA_VERSION, builtinCategories } from '@/types/domain';
 import { newId } from '@/utils/id';
 import { countWords, docToPlainText, makeExcerpt } from '@/utils/text';
 import { materializeFolders, templateById } from '@/data/templates';
@@ -51,13 +42,9 @@ interface DocSpec {
   folder: string;
   tags?: string[];
   fields?: Array<[label: string, value: string]>;
-  /** The structured profile fields — shape depends on which kind's array this
-   * spec lives in (Character/Location/Creature/Tech). */
-  profile?:
-    | Partial<CharacterProfile>
-    | Partial<LocationProfile>
-    | Partial<CreatureProfile>
-    | Partial<TechProfile>;
+  /** The structured profile fields, keyed by the relevant category's field
+   * ids (see `builtinCategories`). */
+  profile?: Profile;
   /** Paragraphs; `@key` inside a paragraph becomes an entity reference node. */
   body: string[];
 }
@@ -730,27 +717,41 @@ export function buildDemoProject(): ProjectBundle {
   const characters: CharacterDoc[] = CHARACTERS.map((spec, i) => ({
     ...buildDoc(spec, i),
     kind: 'character' as const,
-    profile: { ...defaultCharacterProfile(), ...spec.profile },
+    profile: { ...(spec.profile ?? {}) },
   }));
 
-  const locations: LocationDoc[] = LOCATIONS.map((spec, i) => ({
-    ...buildDoc(spec, i),
-    kind: 'location' as const,
-    mapId: map.id,
-    profile: { ...defaultLocationProfile(), ...(spec.profile as Partial<LocationProfile>) },
-  }));
+  // Locations, creatures and tech have no prose editor — their body text
+  // (still authored above as ordinary paragraphs, for convenience and so
+  // @key references resolve the same way as everywhere else in this file)
+  // becomes their profile's Notes field instead, exactly like the migration
+  // does for a project that already existed before this change shipped.
+  const locations: LocationDoc[] = LOCATIONS.map((spec, i) => {
+    const doc = buildDoc(spec, i);
+    return {
+      ...doc,
+      kind: 'location' as const,
+      mapId: map.id,
+      profile: { ...(spec.profile ?? {}), notes: docToPlainText(doc.content) },
+    };
+  });
 
-  const creatures: CreatureDoc[] = CREATURES.map((spec, i) => ({
-    ...buildDoc(spec, i),
-    kind: 'creature' as const,
-    profile: { ...defaultCreatureProfile(), ...(spec.profile as Partial<CreatureProfile>) },
-  }));
+  const creatures: CreatureDoc[] = CREATURES.map((spec, i) => {
+    const doc = buildDoc(spec, i);
+    return {
+      ...doc,
+      kind: 'creature' as const,
+      profile: { ...(spec.profile ?? {}), notes: docToPlainText(doc.content) },
+    };
+  });
 
-  const tech: TechDoc[] = TECH.map((spec, i) => ({
-    ...buildDoc(spec, i),
-    kind: 'tech' as const,
-    profile: { ...defaultTechProfile(), ...(spec.profile as Partial<TechProfile>) },
-  }));
+  const tech: TechDoc[] = TECH.map((spec, i) => {
+    const doc = buildDoc(spec, i);
+    return {
+      ...doc,
+      kind: 'tech' as const,
+      profile: { ...(spec.profile ?? {}), notes: docToPlainText(doc.content) },
+    };
+  });
 
   const notes: NoteDoc[] = NOTES.map((spec, i) => ({
     ...buildDoc(spec, i),
@@ -980,10 +981,12 @@ export function buildDemoProject(): ProjectBundle {
   return {
     project,
     folders,
+    categories: builtinCategories(project.id, now),
     characters,
     locations,
     creatures,
     tech,
+    customDocs: [],
     notes,
     tags,
     relationships,

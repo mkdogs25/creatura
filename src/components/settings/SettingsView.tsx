@@ -9,6 +9,7 @@ import {
   Palette,
   PenLine,
   FolderCog,
+  Shapes,
   Type,
 } from 'lucide-react';
 import { AppearanceSettings } from '@/components/settings/panels/AppearancePanel';
@@ -16,12 +17,16 @@ import { EditorPanel } from '@/components/settings/panels/EditorPanel';
 import { WritingPanel } from '@/components/settings/panels/WritingPanel';
 import { InterfacePanel } from '@/components/settings/panels/InterfacePanel';
 import { ProjectsPanel } from '@/components/settings/panels/ProjectsPanel';
+import { CategoriesPanel } from '@/components/settings/panels/CategoriesPanel';
 import { DataPanel } from '@/components/settings/panels/DataPanel';
 import { AboutPanel } from '@/components/settings/panels/AboutPanel';
 import { ShortcutsPanel } from '@/components/settings/panels/ShortcutsPanel';
 import { cn } from '@/utils/cn';
 
-interface Category {
+/** One entry in the settings sidebar — not to be confused with the domain
+ * `Category` type (a document category like Characters or Locations), which
+ * the "Categories" entry below manages. */
+interface SettingsSectionEntry {
   id: string;
   label: string;
   icon: LucideIcon;
@@ -29,7 +34,7 @@ interface Category {
   render: () => JSX.Element;
 }
 
-const CATEGORIES: Category[] = [
+const CATEGORIES: SettingsSectionEntry[] = [
   {
     id: 'appearance',
     label: 'Appearance',
@@ -64,6 +69,13 @@ const CATEGORIES: Category[] = [
     icon: FolderCog,
     description: 'This project and its statistics.',
     render: () => <ProjectsPanel />,
+  },
+  {
+    id: 'categories',
+    label: 'Categories',
+    icon: Shapes,
+    description: 'Document kinds and the input fields each one asks for.',
+    render: () => <CategoriesPanel />,
   },
   {
     id: 'data',

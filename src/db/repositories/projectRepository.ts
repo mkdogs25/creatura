@@ -1,8 +1,10 @@
 import { db, PROJECT_TABLES } from '@/db/database';
 import {
+  categorySchema,
   chapterSchema,
   characterSchema,
   creatureSchema,
+  customDocSchema,
   eventSchema,
   folderSchema,
   locationSchema,
@@ -22,8 +24,10 @@ import {
   terrainStrokeSchema,
 } from '@/db/schemas';
 import type {
+  Category,
   CharacterDoc,
   CreatureDoc,
+  CustomDoc,
   LocationDoc,
   NoteDoc,
   Project,
@@ -56,10 +60,12 @@ export async function loadProjectBundle(projectId: string): Promise<ProjectBundl
 
   const [
     folders,
+    categories,
     characters,
     locations,
     creatures,
     tech,
+    customDocs,
     notes,
     tags,
     relationships,
@@ -74,10 +80,12 @@ export async function loadProjectBundle(projectId: string): Promise<ProjectBundl
     stamps,
   ] = await Promise.all([
     where(db.folders),
+    where(db.categories),
     where(db.characters),
     where(db.locations),
     where(db.creatures),
     where(db.tech),
+    where(db.customDocs),
     where(db.notes),
     where(db.tags),
     where(db.relationships),
@@ -95,10 +103,12 @@ export async function loadProjectBundle(projectId: string): Promise<ProjectBundl
   return {
     project: parsedProject.data,
     folders: parseAll(folderSchema, folders, 'folder'),
+    categories: parseAll(categorySchema, categories, 'category') as Category[],
     characters: parseAll(characterSchema, characters, 'character') as CharacterDoc[],
     locations: parseAll(locationSchema, locations, 'location') as LocationDoc[],
     creatures: parseAll(creatureSchema, creatures, 'creature') as CreatureDoc[],
     tech: parseAll(techSchema, tech, 'tech') as TechDoc[],
+    customDocs: parseAll(customDocSchema, customDocs, 'custom doc') as CustomDoc[],
     notes: parseAll(noteSchema, notes, 'note') as NoteDoc[],
     tags: parseAll(tagSchema, tags, 'tag'),
     relationships: parseAll(relationshipSchema, relationships, 'relationship'),
@@ -122,10 +132,12 @@ export async function saveProjectBundle(bundle: ProjectBundle): Promise<void> {
     async () => {
       await db.projects.put(bundle.project);
       await db.folders.bulkPut(bundle.folders);
+      await db.categories.bulkPut(bundle.categories);
       await db.characters.bulkPut(bundle.characters);
       await db.locations.bulkPut(bundle.locations);
       await db.creatures.bulkPut(bundle.creatures);
       await db.tech.bulkPut(bundle.tech);
+      await db.customDocs.bulkPut(bundle.customDocs);
       await db.notes.bulkPut(bundle.notes);
       await db.tags.bulkPut(bundle.tags);
       await db.relationships.bulkPut(bundle.relationships);

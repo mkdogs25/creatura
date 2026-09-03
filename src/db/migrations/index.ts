@@ -1,4 +1,6 @@
 import type Dexie from 'dexie';
+import { builtinCategories, type RichContent } from '@/types/domain';
+import { docToPlainText } from '@/utils/text';
 
 /**
  * Schema history for the local database.
@@ -55,4 +57,37 @@ export function applyMigrations(db: Dexie): void {
     creatures: 'id, projectId, folderId, name, order',
     tech: 'id, projectId, folderId, name, order',
   });
+
+  // v7 — document categories become user-editable data instead of fixed
+  // TypeScript shapes: every project gets the four built-in categories'
+  // current field lists as real rows it can add to, edit or delete fields
+  // from, and can define any number of its own on top (stored in the new
+  // `customDocs` table, one per category). Locations, creatures and tech
+  // stop having a prose editor in the same change the built-in Location
+  // profile just got — so their existing body text is copied into a new
+  // "Notes" profile field first. Nothing is deleted; `content` stays on
+  // the record, just unused going forward.
+  db.version(7)
+    .stores({
+      categories: 'id, projectId, order',
+      customDocs: 'id, projectId, folderId, categoryId, name, order',
+    })
+    .upgrade(async (tx) => {
+      const now = Date.now();
+      const projects = await tx.table('projects').toArray();
+      for (const project of projects as Array<{ id: string }>) {
+        await tx.table('categories').bulkPut(builtinCategories(project.id, now));
+      }
+
+      for (const tableName of ['locations', 'creatures', 'tech']) {
+        await tx
+          .table(tableName)
+          .toCollection()
+          .modify((row: { content?: RichContent; profile?: Record<string, string> }) => {
+            const text = docToPlainText(row.content);
+            if (!text) return;
+            row.profile = { ...(row.profile ?? {}), notes: text };
+          });
+      }
+    });
 }

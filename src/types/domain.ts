@@ -14,13 +14,16 @@ export type ThemeMode = 'dark' | 'light' | 'system';
 export type Density = 'compact' | 'comfortable';
 export type ViewId = 'library' | 'timeline' | 'manuscript' | 'matrix' | 'settings';
 
-/** The kinds of writable document that live in the folder tree. */
-export type DocKind = 'note' | 'character' | 'location' | 'creature' | 'tech';
+/** The kinds of writable document that live in the folder tree. `custom`
+ * covers every user-defined category — which one is named by `categoryId`
+ * on the document itself, since there can be any number of them. */
+export type DocKind = 'note' | 'character' | 'location' | 'creature' | 'tech' | 'custom';
 
 /** Everything addressable by a stable id. */
 export type EntityKind =
   | DocKind
   | 'folder'
+  | 'category'
   | 'tag'
   | 'event'
   | 'pov'
@@ -70,157 +73,188 @@ export interface BaseDoc {
   updatedAt: number;
 }
 
-/**
- * A structured character profile, filled in beside the prose rather than
- * buried in generic metadata fields — mainly so the app actually knows a
- * character's name in parts. Without that, "Professor Oshira" and
- * "Professor Bristol Oshira" read as two different people to the name
- * detector; with a title and first/last name on record, both resolve back
- * to the same one (see `expandKnownNames`).
- */
-export interface CharacterProfile {
-  title: string;
-  firstName: string;
-  middleName: string;
-  lastName: string;
-  /** Protagonist, Antagonist, Sidekick… free text, but also mirrored as a tag. */
-  role: string;
-  age: string;
-  gender: string;
-  occupation: string;
-  /** Eye colour, hair, height… free text — deliberately one field, not a
-   * rigid checklist, since which features matter varies wildly by story. */
-  physicalFeatures: string;
-  /** Comma- or line-separated traits, each mirrored as a tag. */
-  personalityTraits: string;
+/** A single input field on a Category — the unit both the four built-in
+ * categories and any user-defined one are made of. `id` is the stable key a
+ * document's `profile` record stores the value under; it survives label
+ * edits, and (for the built-in categories) some ids are meaningful to the
+ * app itself — see `expandKnownNames` and `applyProfileTagMirrors`. */
+export type CategoryFieldType = 'text' | 'textarea';
+/** Whether a field's value also becomes a tag: `single` swaps one tag in and
+ * out as the value changes (a role, a type); `list` splits a comma/line
+ * separated value into several tags, diffed on change (traits, features). */
+export type TagMirror = 'none' | 'single' | 'list';
+
+export interface CategoryField {
+  id: string;
+  label: string;
+  type: CategoryFieldType;
+  tagMirror: TagMirror;
+  hint?: string;
+  /** Optional autocomplete values shown in the field's dropdown — a
+   * convenience, not a constraint; any value can still be typed. */
+  suggestions?: string[];
 }
 
-export function defaultCharacterProfile(): CharacterProfile {
-  return {
-    title: '',
-    firstName: '',
-    middleName: '',
-    lastName: '',
-    role: '',
-    age: '',
-    gender: '',
-    occupation: '',
-    physicalFeatures: '',
-    personalityTraits: '',
-  };
+/**
+ * A document category: a name, an icon, and the set of structured fields its
+ * documents fill in instead of (not alongside — none of these kinds keep a
+ * prose editor) free-form prose. Character/Location/Creature/Tech are the
+ * four built-in categories, seeded into every project; a project can also
+ * define any number of its own. Both kinds are edited the same way, in
+ * Settings → Categories — a built-in category's fields are just as editable
+ * as a custom one's, only the category itself can't be renamed away or
+ * deleted, since Matrix, Timeline and Maps all assume Character and
+ * Location specifically exist.
+ */
+export interface Category {
+  id: string;
+  projectId: string;
+  /** Plural display name — "Characters", "Artifacts". */
+  name: string;
+  icon: string;
+  builtin: boolean;
+  fields: CategoryField[];
+  order: number;
+  createdAt: number;
+  updatedAt: number;
 }
+
+/** A profile is a flat, dynamic key→value record keyed by `CategoryField.id`
+ * — its shape is exactly whatever the doc's category currently defines, so
+ * adding, renaming or deleting a field in Settings takes effect immediately
+ * without a migration. Missing keys just render as empty. */
+export type Profile = Record<string, string>;
 
 export interface CharacterDoc extends BaseDoc {
   kind: 'character';
-  profile: CharacterProfile;
-}
-
-/**
- * A structured location profile — mirrors the character profile pattern so
- * "what kind of place is this" and "what does it feel like to be there"
- * have real fields instead of living only in prose or generic metadata.
- */
-export interface LocationProfile {
-  /** City, region, building, wilderness… free text, mirrored as a tag. */
-  type: string;
-  climate: string;
-  population: string;
-  /** Ruling authority — a monarch, a council, an occupying power. */
-  government: string;
-  dangerLevel: string;
-  /** Comma- or line-separated, each mirrored as a tag — landmarks, quirks. */
-  notableFeatures: string;
-  /** What it feels like to be there, free text. */
-  atmosphere: string;
-}
-
-export function defaultLocationProfile(): LocationProfile {
-  return {
-    type: '',
-    climate: '',
-    population: '',
-    government: '',
-    dangerLevel: '',
-    notableFeatures: '',
-    atmosphere: '',
-  };
+  profile: Profile;
 }
 
 export interface LocationDoc extends BaseDoc {
   kind: 'location';
   /** Optional map this location is depicted on. */
   mapId: string | null;
-  profile: LocationProfile;
-}
-
-/** A structured profile for a creature, monster, beast or other non-sapient
- * (or non-humanoid) inhabitant of the world — the same idea as a character
- * profile, sized for something that isn't given a name-in-parts. */
-export interface CreatureProfile {
-  /** Beast, monster, familiar, spirit… free text, mirrored as a tag. */
-  species: string;
-  habitat: string;
-  diet: string;
-  size: string;
-  threatLevel: string;
-  /** Comma- or line-separated, each mirrored as a tag. */
-  abilities: string;
-  physicalFeatures: string;
-}
-
-export function defaultCreatureProfile(): CreatureProfile {
-  return {
-    species: '',
-    habitat: '',
-    diet: '',
-    size: '',
-    threatLevel: '',
-    abilities: '',
-    physicalFeatures: '',
-  };
+  profile: Profile;
 }
 
 export interface CreatureDoc extends BaseDoc {
   kind: 'creature';
-  profile: CreatureProfile;
-}
-
-/** A structured profile for a piece of technology, a magic item, a
- * vehicle or artifact — anything made rather than born. */
-export interface TechProfile {
-  /** Weapon, vehicle, device, artifact… free text, mirrored as a tag. */
-  category: string;
-  origin: string;
-  rarity: string;
-  powerSource: string;
-  function: string;
-  /** Comma- or line-separated, each mirrored as a tag. */
-  properties: string;
-  limitations: string;
-}
-
-export function defaultTechProfile(): TechProfile {
-  return {
-    category: '',
-    origin: '',
-    rarity: '',
-    powerSource: '',
-    function: '',
-    properties: '',
-    limitations: '',
-  };
+  profile: Profile;
 }
 
 export interface TechDoc extends BaseDoc {
   kind: 'tech';
-  profile: TechProfile;
+  profile: Profile;
+}
+
+/** A document in a user-defined category. `categoryId` names which one,
+ * since — unlike the four built-ins — there's no fixed `kind` per category. */
+export interface CustomDoc extends BaseDoc {
+  kind: 'custom';
+  categoryId: string;
+  profile: Profile;
 }
 
 export interface NoteDoc extends BaseDoc {
   kind: 'note';
 }
 
-export type AnyDoc = CharacterDoc | LocationDoc | CreatureDoc | TechDoc | NoteDoc;
+export type AnyDoc = CharacterDoc | LocationDoc | CreatureDoc | TechDoc | CustomDoc | NoteDoc;
+
+/** The category id a document's profile fields come from — the four
+ * built-ins double as their own category id, so only `custom` docs need a
+ * separate lookup. Null for notes, which have no category. */
+export function categoryIdOf(doc: AnyDoc): string | null {
+  if (doc.kind === 'note') return null;
+  if (doc.kind === 'custom') return doc.categoryId;
+  return doc.kind;
+}
+
+/**
+ * The four built-in categories' starting field sets — the single source of
+ * truth used both when a project is first created (templates, the demo
+ * project) and when an existing local database is migrated onto the
+ * category system for the first time. Field ids are meaningful, not
+ * arbitrary: `character`'s title/firstName/middleName/lastName are read by
+ * name (see `expandKnownNames` and `applyProfileTagMirrors`) wherever they
+ * still exist in a project's category — deleting one just turns off the
+ * behaviour that depended on it, rather than breaking anything.
+ */
+export function builtinCategories(projectId: string, now: number): Category[] {
+  const base = { projectId, builtin: true as const, createdAt: now, updatedAt: now };
+  return [
+    {
+      ...base,
+      id: 'character',
+      name: 'Characters',
+      icon: 'users',
+      order: 0,
+      fields: [
+        { id: 'title', label: 'Title', type: 'text', tagMirror: 'none', suggestions: ['Mr', 'Mrs', 'Ms', 'Mx', 'Dr', 'Professor', 'Captain', 'Sir', 'Lady', 'Lord'] },
+        { id: 'firstName', label: 'First name', type: 'text', tagMirror: 'none' },
+        { id: 'middleName', label: 'Middle name', type: 'text', tagMirror: 'none' },
+        { id: 'lastName', label: 'Last name', type: 'text', tagMirror: 'none' },
+        { id: 'role', label: 'Role', type: 'text', tagMirror: 'single', suggestions: ['Protagonist', 'Antagonist', 'Deuteragonist', 'Sidekick', 'Mentor', 'Love Interest', 'Supporting', 'Minor'] },
+        { id: 'age', label: 'Age', type: 'text', tagMirror: 'none' },
+        { id: 'gender', label: 'Gender', type: 'text', tagMirror: 'none' },
+        { id: 'occupation', label: 'Occupation', type: 'text', tagMirror: 'none' },
+        { id: 'physicalFeatures', label: 'Physical features', type: 'textarea', tagMirror: 'none', hint: 'Eye colour, hair, height — whatever matters for this one.' },
+        { id: 'personalityTraits', label: 'Personality traits', type: 'textarea', tagMirror: 'list', hint: 'Comma- or line-separated — each one becomes a tag.' },
+      ],
+    },
+    {
+      ...base,
+      id: 'location',
+      name: 'Locations',
+      icon: 'map-pin',
+      order: 1,
+      fields: [
+        { id: 'type', label: 'Type', type: 'text', tagMirror: 'single', suggestions: ['City', 'Town', 'Village', 'Region', 'Country', 'Building', 'Landmark', 'Wilderness', 'Realm'] },
+        { id: 'climate', label: 'Climate', type: 'text', tagMirror: 'none' },
+        { id: 'population', label: 'Population', type: 'text', tagMirror: 'none' },
+        { id: 'government', label: 'Government', type: 'text', tagMirror: 'none' },
+        { id: 'dangerLevel', label: 'Danger level', type: 'text', tagMirror: 'none' },
+        { id: 'notableFeatures', label: 'Notable features', type: 'textarea', tagMirror: 'list', hint: 'Comma- or line-separated — each one becomes a tag.' },
+        { id: 'atmosphere', label: 'Atmosphere', type: 'textarea', tagMirror: 'none', hint: 'What it feels like to be there.' },
+        { id: 'notes', label: 'Notes', type: 'textarea', tagMirror: 'none' },
+      ],
+    },
+    {
+      ...base,
+      id: 'creature',
+      name: 'Creatures',
+      icon: 'paw-print',
+      order: 2,
+      fields: [
+        { id: 'species', label: 'Species', type: 'text', tagMirror: 'single', suggestions: ['Beast', 'Monster', 'Familiar', 'Spirit', 'Undead', 'Construct', 'Hybrid', 'Divine'] },
+        { id: 'habitat', label: 'Habitat', type: 'text', tagMirror: 'none' },
+        { id: 'diet', label: 'Diet', type: 'text', tagMirror: 'none' },
+        { id: 'size', label: 'Size', type: 'text', tagMirror: 'none' },
+        { id: 'threatLevel', label: 'Threat level', type: 'text', tagMirror: 'none' },
+        { id: 'abilities', label: 'Abilities', type: 'textarea', tagMirror: 'list', hint: 'Comma- or line-separated — each one becomes a tag.' },
+        { id: 'physicalFeatures', label: 'Physical features', type: 'textarea', tagMirror: 'none', hint: 'Size, colouring, distinguishing marks.' },
+        { id: 'notes', label: 'Notes', type: 'textarea', tagMirror: 'none' },
+      ],
+    },
+    {
+      ...base,
+      id: 'tech',
+      name: 'Tech',
+      icon: 'cpu',
+      order: 3,
+      fields: [
+        { id: 'category', label: 'Category', type: 'text', tagMirror: 'single', suggestions: ['Weapon', 'Vehicle', 'Device', 'Magic Item', 'Artifact', 'Armor', 'Tool', 'Structure'] },
+        { id: 'origin', label: 'Origin', type: 'text', tagMirror: 'none' },
+        { id: 'rarity', label: 'Rarity', type: 'text', tagMirror: 'none' },
+        { id: 'powerSource', label: 'Power source', type: 'text', tagMirror: 'none' },
+        { id: 'function', label: 'Function', type: 'textarea', tagMirror: 'none', hint: 'What it does.' },
+        { id: 'properties', label: 'Properties', type: 'textarea', tagMirror: 'list', hint: 'Comma- or line-separated — each one becomes a tag.' },
+        { id: 'limitations', label: 'Limitations', type: 'textarea', tagMirror: 'none', hint: "Drawbacks, costs, what it can't do." },
+        { id: 'notes', label: 'Notes', type: 'textarea', tagMirror: 'none' },
+      ],
+    },
+  ];
+}
 
 export interface Folder {
   id: string;
@@ -519,10 +553,12 @@ export interface ProjectExport {
   exportedAt: number;
   project: Project;
   folders: Folder[];
+  categories: Category[];
   characters: CharacterDoc[];
   locations: LocationDoc[];
   creatures: CreatureDoc[];
   tech: TechDoc[];
+  customDocs: CustomDoc[];
   notes: NoteDoc[];
   tags: Tag[];
   relationships: Relationship[];
@@ -541,10 +577,12 @@ export interface ProjectExport {
 export interface ProjectBundle {
   project: Project;
   folders: Folder[];
+  categories: Category[];
   characters: CharacterDoc[];
   locations: LocationDoc[];
   creatures: CreatureDoc[];
   tech: TechDoc[];
+  customDocs: CustomDoc[];
   notes: NoteDoc[];
   tags: Tag[];
   relationships: Relationship[];

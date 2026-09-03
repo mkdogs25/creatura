@@ -52,20 +52,21 @@ export function useProjectActions() {
    * which is nearly always what was meant.
    */
   const createDoc = useCallback(
-    (kind: DocKind) => {
+    (kind: DocKind, categoryId?: string) => {
       const current = activeDocId
         ? [
             ...(bundle?.characters ?? []),
             ...(bundle?.locations ?? []),
             ...(bundle?.creatures ?? []),
             ...(bundle?.tech ?? []),
+            ...(bundle?.customDocs ?? []),
             ...(bundle?.notes ?? []),
           ].find((doc) => doc.id === activeDocId)
         : null;
 
       const folderId =
         current?.kind === kind ? current.folderId : defaultFolderFor(bundle, kind);
-      const id = createDocInStore({ kind, folderId });
+      const id = createDocInStore({ kind, categoryId, folderId });
       if (!id) return;
 
       if (current && current.kind !== kind && kind !== 'note') {
@@ -439,13 +440,15 @@ function defaultFolderFor(
   if (!bundle) return null;
   const byDefaultKind = bundle.folders.find((folder) => folder.defaultKind === kind);
   if (byDefaultKind) return byDefaultKind.id;
-  const nameGuess = {
+  const nameGuess: Partial<Record<DocKind, string>> = {
     character: 'characters',
     location: 'locations',
     creature: 'creatures',
     tech: 'technology',
     note: 'notes',
-  }[kind];
-  const byName = bundle.folders.find((folder) => folder.name.toLowerCase() === nameGuess);
+  };
+  const guess = nameGuess[kind];
+  if (!guess) return null;
+  const byName = bundle.folders.find((folder) => folder.name.toLowerCase() === guess);
   return byName?.id ?? null;
 }

@@ -8,6 +8,7 @@ export type SearchResultType =
   | 'location'
   | 'creature'
   | 'tech'
+  | 'custom'
   | 'note'
   | 'folder'
   | 'event'
@@ -30,6 +31,7 @@ const TYPE_WEIGHT: Record<SearchResultType, number> = {
   chapter: 5,
   creature: 4,
   tech: 4,
+  custom: 4,
   note: 4,
   event: 4,
   folder: 2,

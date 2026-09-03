@@ -1,8 +1,10 @@
 import Dexie, { type Table } from 'dexie';
 import { applyMigrations } from '@/db/migrations';
 import type {
+  Category,
   CharacterDoc,
   CreatureDoc,
+  CustomDoc,
   DocSnapshot,
   Folder,
   LocationDoc,
@@ -48,10 +50,12 @@ export interface DeviceRecord {
 export class CreaturaDatabase extends Dexie {
   projects!: Table<Project, string>;
   folders!: Table<Folder, string>;
+  categories!: Table<Category, string>;
   characters!: Table<CharacterDoc, string>;
   locations!: Table<LocationDoc, string>;
   creatures!: Table<CreatureDoc, string>;
   tech!: Table<TechDoc, string>;
+  customDocs!: Table<CustomDoc, string>;
   notes!: Table<NoteDoc, string>;
   tags!: Table<import('@/types/domain').Tag, string>;
   relationships!: Table<Relationship, string>;
@@ -80,10 +84,12 @@ export const db = new CreaturaDatabase();
 /** Names of every project-scoped table, used for bulk delete and export. */
 export const PROJECT_TABLES = [
   'folders',
+  'categories',
   'characters',
   'locations',
   'creatures',
   'tech',
+  'customDocs',
   'notes',
   'tags',
   'relationships',

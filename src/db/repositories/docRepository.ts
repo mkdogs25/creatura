@@ -8,6 +8,7 @@ export function tableForKind(kind: DocKind) {
   if (kind === 'location') return db.locations;
   if (kind === 'creature') return db.creatures;
   if (kind === 'tech') return db.tech;
+  if (kind === 'custom') return db.customDocs;
   return db.notes;
 }
 
@@ -28,6 +29,7 @@ export async function deleteDoc(docId: string): Promise<void> {
     kind !== 'location' &&
     kind !== 'creature' &&
     kind !== 'tech' &&
+    kind !== 'custom' &&
     kind !== 'note'
   )
     return;

@@ -1,8 +1,10 @@
 import { projectExportSchema } from '@/db/schemas';
 import { SCHEMA_VERSION } from '@/types/domain';
 import type {
+  Category,
   CharacterDoc,
   CreatureDoc,
+  CustomDoc,
   LocationDoc,
   NoteDoc,
   ProjectBundle,
@@ -21,10 +23,12 @@ export function bundleToExport(bundle: ProjectBundle): ProjectExport {
     exportedAt: Date.now(),
     project: bundle.project,
     folders: bundle.folders,
+    categories: bundle.categories,
     characters: bundle.characters,
     locations: bundle.locations,
     creatures: bundle.creatures,
     tech: bundle.tech,
+    customDocs: bundle.customDocs,
     notes: bundle.notes,
     tags: bundle.tags,
     relationships: bundle.relationships,
@@ -138,10 +142,26 @@ export function parseProjectFile(text: string): ImportResult {
   };
 
   const folders = dedupe(data.folders);
+
+  // Built-in categories keep their literal id ('character', 'location', …) —
+  // it's what `categoryIdOf` always resolves those four doc kinds to, so
+  // remapping it would orphan every character/location/creature/tech doc's
+  // profile schema. Only custom categories need a fresh, deduped id.
+  const categories: Category[] = data.categories.flatMap((category) => {
+    if (category.builtin) {
+      idMap.set(category.id, category.id);
+      return [{ ...category, projectId }];
+    }
+    const fresh = claim(category.id);
+    if (!fresh) return [];
+    return [{ ...category, id: fresh, projectId }];
+  });
+
   const characters = dedupe(data.characters);
   const locations = dedupe(data.locations);
   const creatures = dedupe(data.creatures);
   const tech = dedupe(data.tech);
+  const customDocs = dedupe(data.customDocs);
   const notes = dedupe(data.notes);
   const tags = dedupe(data.tags);
   const relationships = dedupe(data.relationships);
@@ -185,7 +205,9 @@ export function parseProjectFile(text: string): ImportResult {
   };
 
   /** Re-points a document's folder, tags and inline references. */
-  const fixDoc = <T extends CharacterDoc | LocationDoc | CreatureDoc | TechDoc | NoteDoc>(
+  const fixDoc = <
+    T extends CharacterDoc | LocationDoc | CreatureDoc | TechDoc | CustomDoc | NoteDoc,
+  >(
     doc: T,
   ): T => ({
     ...doc,
@@ -204,6 +226,7 @@ export function parseProjectFile(text: string): ImportResult {
       updatedAt: Date.now(),
     },
     folders: folders.map((folder) => ({ ...folder, parentId: ref(folder.parentId) })),
+    categories,
     characters: characters.map(fixDoc),
     locations: locations.map((location) => ({
       ...fixDoc(location),
@@ -211,6 +234,14 @@ export function parseProjectFile(text: string): ImportResult {
     })),
     creatures: creatures.map(fixDoc),
     tech: tech.map(fixDoc),
+    customDocs: customDocs.flatMap((doc) => {
+      const categoryId = ref(doc.categoryId);
+      if (!categoryId) {
+        warnings.push('Some custom entries referred to a category missing from the file and were dropped.');
+        return [];
+      }
+      return [{ ...fixDoc(doc), categoryId }];
+    }),
     notes: notes.map(fixDoc),
     tags,
     relationships: relationships.flatMap((relationship) => {

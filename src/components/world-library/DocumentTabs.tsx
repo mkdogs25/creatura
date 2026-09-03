@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { useEditorStore } from '@/store/editorStore';
 import { useProjectStore } from '@/store/projectStore';
 import { docById } from '@/store/selectors';
-import { DOC_ICON } from '@/components/world-library/FolderTree';
+import { docIcon } from '@/components/world-library/FolderTree';
 import { cn } from '@/utils/cn';
 
 /**
@@ -42,7 +42,7 @@ export function DocumentTabs() {
       className="scroll-thin flex shrink-0 items-stretch overflow-x-auto border-b border-[var(--color-line)] bg-[var(--color-surface)]"
     >
       {tabs.map((doc) => {
-        const Icon = DOC_ICON[doc.kind];
+        const Icon = docIcon(bundle, doc);
         const active = doc.id === activeDocId;
         const isNew = !seenIds.current.has(doc.id);
         return (

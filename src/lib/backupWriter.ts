@@ -95,6 +95,7 @@ export async function writeProjectBackup(
     ...bundle.locations,
     ...bundle.creatures,
     ...bundle.tech,
+    ...bundle.customDocs,
     ...bundle.notes,
   ];
   const nameById = new Map(allDocs.map((doc) => [doc.id, doc.name]));

@@ -4,27 +4,27 @@ import {
   BookOpen,
   BookText,
   CalendarPlus,
-  Cpu,
   FilePlus2,
   FileUp,
   FolderPlus,
   Grid3x3,
-  MapPin,
   Menu as MenuIcon,
   Moon,
   Monitor,
-  PawPrint,
   Plus,
   Search,
   Settings as SettingsIcon,
   Sun,
   Tag as TagIcon,
   Timer,
-  User,
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useProjectStore } from '@/store/projectStore';
 import { useProjectActions } from '@/hooks/useProjectActions';
+import { orderedCategories } from '@/store/selectors';
+import { folderIcon } from '@/components/world-library/folderIcons';
+import { singularize } from '@/utils/text';
 import { QuillMark } from '@/components/navigation/QuillMark';
 import { ProjectMenu } from '@/components/navigation/ProjectMenu';
 import { SaveIndicator } from '@/components/navigation/SaveIndicator';
@@ -54,6 +54,8 @@ export function TopNav() {
   const theme = useSettingsStore((s) => s.settings.appearance.theme);
   const showMatrixTab = useSettingsStore((s) => s.settings.interface.showMatrixTab);
   const actions = useProjectActions();
+  const bundle = useProjectStore((s) => s.bundle);
+  const categories = useMemo(() => orderedCategories(bundle), [bundle]);
 
   const createRef = useRef<HTMLButtonElement>(null);
   const [createAnchor, setCreateAnchor] = useState<DOMRect | null>(null);
@@ -67,30 +69,16 @@ export function TopNav() {
   const createEntries: MenuEntry[] = [
     { id: 'h', heading: 'Create' },
     { id: 'note', label: 'Note', icon: FilePlus2, onSelect: () => actions.createDoc('note') },
-    {
-      id: 'character',
-      label: 'Character',
-      icon: User,
-      onSelect: () => actions.createDoc('character'),
-    },
-    {
-      id: 'location',
-      label: 'Location',
-      icon: MapPin,
-      onSelect: () => actions.createDoc('location'),
-    },
-    {
-      id: 'creature',
-      label: 'Creature',
-      icon: PawPrint,
-      onSelect: () => actions.createDoc('creature'),
-    },
-    {
-      id: 'tech',
-      label: 'Tech',
-      icon: Cpu,
-      onSelect: () => actions.createDoc('tech'),
-    },
+    ...categories.map((category) => ({
+      id: category.id,
+      label: singularize(category.name),
+      icon: folderIcon(category.icon),
+      onSelect: () =>
+        actions.createDoc(
+          category.builtin ? (category.id as 'character' | 'location' | 'creature' | 'tech') : 'custom',
+          category.id,
+        ),
+    })),
     {
       id: 'event',
       label: 'Timeline Event',

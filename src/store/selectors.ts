@@ -1,5 +1,6 @@
 import type {
   AnyDoc,
+  Category,
   Folder,
   ManuscriptChapter,
   MatrixCell,
@@ -7,6 +8,7 @@ import type {
   Relationship,
   TimelineEvent,
 } from '@/types/domain';
+import { categoryIdOf } from '@/types/domain';
 
 /** All documents across every table, in one list. */
 export function allDocs(bundle: ProjectBundle | null): AnyDoc[] {
@@ -16,6 +18,7 @@ export function allDocs(bundle: ProjectBundle | null): AnyDoc[] {
     ...bundle.locations,
     ...bundle.creatures,
     ...bundle.tech,
+    ...bundle.customDocs,
     ...bundle.notes,
   ];
 }
@@ -27,9 +30,26 @@ export function docById(bundle: ProjectBundle | null, id: string | null): AnyDoc
     bundle.locations.find((d) => d.id === id) ??
     bundle.creatures.find((d) => d.id === id) ??
     bundle.tech.find((d) => d.id === id) ??
+    bundle.customDocs.find((d) => d.id === id) ??
     bundle.notes.find((d) => d.id === id) ??
     null
   );
+}
+
+/** Categories in display order, built-ins first (their fixed order), then
+ * custom ones. Used everywhere a menu needs "every kind of document you can
+ * create here" — Quick Create, a folder's context menu, the command palette. */
+export function orderedCategories(bundle: ProjectBundle | null): Category[] {
+  if (!bundle) return [];
+  return [...bundle.categories].sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+}
+
+/** The category a document's profile fields come from, or null for a note. */
+export function categoryOf(bundle: ProjectBundle | null, doc: AnyDoc): Category | null {
+  if (!bundle) return null;
+  const categoryId = categoryIdOf(doc);
+  if (!categoryId) return null;
+  return bundle.categories.find((c) => c.id === categoryId) ?? null;
 }
 
 /** Chapters in reading order — the sidebar and the running total both rely on this. */
@@ -207,6 +227,7 @@ export interface ProjectStats {
   locations: number;
   creatures: number;
   tech: number;
+  custom: number;
   folders: number;
   events: number;
   tags: number;
@@ -228,6 +249,7 @@ export function projectStats(bundle: ProjectBundle | null): ProjectStats {
       locations: 0,
       creatures: 0,
       tech: 0,
+      custom: 0,
       folders: 0,
       events: 0,
       tags: 0,
@@ -247,6 +269,7 @@ export function projectStats(bundle: ProjectBundle | null): ProjectStats {
     locations: bundle.locations.length,
     creatures: bundle.creatures.length,
     tech: bundle.tech.length,
+    custom: bundle.customDocs.length,
     folders: bundle.folders.length,
     events: bundle.events.length,
     tags: bundle.tags.length,

@@ -1,18 +1,15 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
   ChevronRight,
-  Cpu,
   FilePlus2,
   FileText,
   FileUp,
   FolderPlus,
-  MapPin,
   PanelLeftClose,
-  PawPrint,
   Pencil,
   Trash2,
-  User,
   CornerUpLeft,
+  type LucideIcon,
 } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { useEditorStore } from '@/store/editorStore';
@@ -21,24 +18,27 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useProjectActions } from '@/hooks/useProjectActions';
 import {
   allDocs,
+  categoryOf,
   childFolders,
   docsInFolder,
   folderItemCount,
+  orderedCategories,
 } from '@/store/selectors';
-import type { AnyDoc, DocKind, Folder } from '@/types/domain';
+import type { AnyDoc, Category, Folder, ProjectBundle } from '@/types/domain';
 import { folderIcon } from '@/components/world-library/folderIcons';
+import { singularize } from '@/utils/text';
 import { MenuHost, useMenu, type MenuEntry } from '@/components/ui/Menu';
 import { Button } from '@/components/ui/Button';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { cn } from '@/utils/cn';
 
-export const DOC_ICON = {
-  character: User,
-  location: MapPin,
-  creature: PawPrint,
-  tech: Cpu,
-  note: FileText,
-};
+/** A document's icon comes from its category — dynamic, since a project can
+ * change a category's icon or define entirely new ones. */
+export function docIcon(bundle: ProjectBundle | null, doc: AnyDoc): LucideIcon {
+  if (doc.kind === 'note') return FileText;
+  const category = categoryOf(bundle, doc);
+  return category ? folderIcon(category.icon) : FileText;
+}
 
 interface DragPayload {
   type: 'doc' | 'folder';
@@ -225,11 +225,18 @@ function FolderRow({
   const children = useMemo(() => childFolders(bundle, folder.id), [bundle, folder.id]);
   const docs = useMemo(() => docsInFolder(bundle, folder.id), [bundle, folder.id]);
   const count = useMemo(() => folderItemCount(bundle, folder.id), [bundle, folder.id]);
+  const categories = useMemo(() => orderedCategories(bundle), [bundle]);
   const Icon = folderIcon(folder.icon);
   const expanded = !folder.collapsed;
 
-  const addDoc = (kind: DocKind) => {
-    const id = createDoc({ kind, folderId: folder.id });
+  const addDoc = (category: Category) => {
+    const id = createDoc({
+      kind: category.builtin
+        ? (category.id as 'character' | 'location' | 'creature' | 'tech')
+        : 'custom',
+      categoryId: category.id,
+      folderId: folder.id,
+    });
     updateFolder(folder.id, { collapsed: false });
     setActiveDoc(id);
   };
@@ -240,32 +247,18 @@ function FolderRow({
       id: 'note',
       label: 'New note here',
       icon: FileText,
-      onSelect: () => addDoc('note'),
+      onSelect: () => {
+        const id = createDoc({ kind: 'note', folderId: folder.id });
+        updateFolder(folder.id, { collapsed: false });
+        setActiveDoc(id);
+      },
     },
-    {
-      id: 'character',
-      label: 'New character here',
-      icon: User,
-      onSelect: () => addDoc('character'),
-    },
-    {
-      id: 'location',
-      label: 'New location here',
-      icon: MapPin,
-      onSelect: () => addDoc('location'),
-    },
-    {
-      id: 'creature',
-      label: 'New creature here',
-      icon: PawPrint,
-      onSelect: () => addDoc('creature'),
-    },
-    {
-      id: 'tech',
-      label: 'New tech here',
-      icon: Cpu,
-      onSelect: () => addDoc('tech'),
-    },
+    ...categories.map((category) => ({
+      id: `new-${category.id}`,
+      label: `New ${singularize(category.name)} here`,
+      icon: folderIcon(category.icon),
+      onSelect: () => addDoc(category),
+    })),
     {
       id: 'subfolder',
       label: 'New subfolder',
@@ -438,13 +431,14 @@ interface DocRowProps {
 }
 
 function DocRow({ doc, depth, active, setDragging, renaming, setRenaming }: DocRowProps) {
+  const bundle = useProjectStore((s) => s.bundle);
   const setActiveDoc = useEditorStore((s) => s.setActiveDoc);
   const updateDoc = useProjectStore((s) => s.updateDoc);
   const deleteDoc = useProjectStore((s) => s.deleteDoc);
   const confirm = useUiStore((s) => s.confirm);
   const confirmDestructive = useSettingsStore((s) => s.settings.interface.confirmDestructive);
   const menu = useMenu();
-  const Icon = DOC_ICON[doc.kind];
+  const Icon = docIcon(bundle, doc);
 
   const entries: MenuEntry[] = [
     { id: 'h', heading: doc.name },

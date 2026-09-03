@@ -5,7 +5,7 @@ import type {
   ProjectBundle,
   TemplateId,
 } from '@/types/domain';
-import { SCHEMA_VERSION } from '@/types/domain';
+import { SCHEMA_VERSION, builtinCategories } from '@/types/domain';
 import { newId } from '@/utils/id';
 
 /** A folder in a template, optionally with children. */
@@ -128,10 +128,12 @@ export function emptyBundle(project: Project, folders: Folder[]): ProjectBundle 
   return {
     project,
     folders,
+    categories: builtinCategories(project.id, project.createdAt),
     characters: [],
     locations: [],
     creatures: [],
     tech: [],
+    customDocs: [],
     notes: [],
     tags: [],
     relationships: [],

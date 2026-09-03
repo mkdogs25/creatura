@@ -7,13 +7,7 @@
  * optional fields get defaults rather than rejecting the record outright.
  */
 import { z } from 'zod';
-import {
-  SCHEMA_VERSION,
-  defaultCharacterProfile,
-  defaultCreatureProfile,
-  defaultLocationProfile,
-  defaultTechProfile,
-} from '@/types/domain';
+import { SCHEMA_VERSION } from '@/types/domain';
 import type { RichContent } from '@/types/domain';
 
 const timestamp = z.number().finite().nonnegative();
@@ -48,80 +42,62 @@ const baseDocShape = {
   updatedAt: timestamp.catch(() => Date.now()),
 };
 
-export const characterProfileSchema = z
-  .object({
-    title: z.string().catch(''),
-    firstName: z.string().catch(''),
-    middleName: z.string().catch(''),
-    lastName: z.string().catch(''),
-    role: z.string().catch(''),
-    age: z.string().catch(''),
-    gender: z.string().catch(''),
-    occupation: z.string().catch(''),
-    physicalFeatures: z.string().catch(''),
-    personalityTraits: z.string().catch(''),
-  })
-  .catch(defaultCharacterProfile);
+/** A profile's shape is entirely defined by its category's fields now, so
+ * one generic string→string record schema covers every kind — a missing or
+ * unrecognised key is simply dropped rather than rejecting the record. */
+export const profileSchema = z.record(z.string(), z.string()).catch({});
 
 export const characterSchema = z.object({
   ...baseDocShape,
   kind: z.literal('character').catch('character'),
-  profile: characterProfileSchema.default(defaultCharacterProfile),
+  profile: profileSchema.default({}),
 });
-
-export const locationProfileSchema = z
-  .object({
-    type: z.string().catch(''),
-    climate: z.string().catch(''),
-    population: z.string().catch(''),
-    government: z.string().catch(''),
-    dangerLevel: z.string().catch(''),
-    notableFeatures: z.string().catch(''),
-    atmosphere: z.string().catch(''),
-  })
-  .catch(defaultLocationProfile);
 
 export const locationSchema = z.object({
   ...baseDocShape,
   kind: z.literal('location').catch('location'),
   mapId: id.nullable().catch(null),
-  profile: locationProfileSchema.default(defaultLocationProfile),
+  profile: profileSchema.default({}),
 });
-
-export const creatureProfileSchema = z
-  .object({
-    species: z.string().catch(''),
-    habitat: z.string().catch(''),
-    diet: z.string().catch(''),
-    size: z.string().catch(''),
-    threatLevel: z.string().catch(''),
-    abilities: z.string().catch(''),
-    physicalFeatures: z.string().catch(''),
-  })
-  .catch(defaultCreatureProfile);
 
 export const creatureSchema = z.object({
   ...baseDocShape,
   kind: z.literal('creature').catch('creature'),
-  profile: creatureProfileSchema.default(defaultCreatureProfile),
+  profile: profileSchema.default({}),
 });
-
-export const techProfileSchema = z
-  .object({
-    category: z.string().catch(''),
-    origin: z.string().catch(''),
-    rarity: z.string().catch(''),
-    powerSource: z.string().catch(''),
-    function: z.string().catch(''),
-    properties: z.string().catch(''),
-    limitations: z.string().catch(''),
-  })
-  .catch(defaultTechProfile);
 
 export const techSchema = z.object({
   ...baseDocShape,
   kind: z.literal('tech').catch('tech'),
-  profile: techProfileSchema.default(defaultTechProfile),
+  profile: profileSchema.default({}),
+});
+
+export const customDocSchema = z.object({
+  ...baseDocShape,
+  kind: z.literal('custom').catch('custom'),
+  categoryId: id,
+  profile: profileSchema.default({}),
+});
+
+export const categoryFieldSchema = z.object({
+  id: id,
+  label: z.string().catch('Field'),
+  type: z.enum(['text', 'textarea']).catch('text'),
+  tagMirror: z.enum(['none', 'single', 'list']).catch('none'),
+  hint: z.string().optional(),
+  suggestions: z.array(z.string()).optional(),
+});
+
+export const categorySchema = z.object({
+  id: id,
+  projectId: id,
+  name: z.string().catch('Category'),
+  icon: z.string().catch('folder'),
+  builtin: z.boolean().catch(false),
+  fields: z.array(categoryFieldSchema).catch([]),
+  order: z.number().catch(0),
+  createdAt: timestamp.catch(() => Date.now()),
+  updatedAt: timestamp.catch(() => Date.now()),
 });
 
 export const noteSchema = z.object({
@@ -399,10 +375,12 @@ export const projectExportSchema = z.object({
   exportedAt: timestamp.catch(() => Date.now()),
   project: projectSchema,
   folders: z.array(folderSchema).catch([]),
+  categories: z.array(categorySchema).catch([]),
   characters: z.array(characterSchema).catch([]),
   locations: z.array(locationSchema).catch([]),
   creatures: z.array(creatureSchema).catch([]),
   tech: z.array(techSchema).catch([]),
+  customDocs: z.array(customDocSchema).catch([]),
   notes: z.array(noteSchema).catch([]),
   tags: z.array(tagSchema).catch([]),
   relationships: z.array(relationshipSchema).catch([]),

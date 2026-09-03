@@ -29,6 +29,7 @@ import {
   Printer,
   Search,
   Settings as SettingsIcon,
+  Shapes,
   Focus,
   SpellCheck,
   Tag as TagIcon,
@@ -40,6 +41,9 @@ import {
   WrapText,
   type LucideIcon,
 } from 'lucide-react';
+import { folderIcon } from '@/components/world-library/folderIcons';
+import { singularize } from '@/utils/text';
+import type { Category, DocKind } from '@/types/domain';
 
 export interface Command {
   id: string;
@@ -52,7 +56,10 @@ export interface Command {
 }
 
 export interface CommandContext {
-  createDoc: (kind: 'note' | 'character' | 'location' | 'creature' | 'tech') => void;
+  createDoc: (kind: DocKind, categoryId?: string) => void;
+  /** Every category in the current project — built-in and custom — used to
+   * generate a "Create X" command for each user-defined one. */
+  categories: Category[];
   createFolder: () => void;
   createTag: () => void;
   createEvent: () => void;
@@ -134,6 +141,18 @@ export function buildCommands(context: CommandContext): Command[] {
       keywords: 'new document page',
       run: () => context.createDoc('note'),
     },
+    // Custom categories (built-ins already have their own entries above,
+    // with better-tuned icons and keywords).
+    ...context.categories
+      .filter((category) => !category.builtin)
+      .map((category): Command => ({
+        id: `create-custom-${category.id}`,
+        label: `Create ${singularize(category.name)}`,
+        group: 'Create',
+        icon: folderIcon(category.icon),
+        keywords: 'new custom category',
+        run: () => context.createDoc('custom', category.id),
+      })),
     {
       id: 'create-event',
       label: 'Create Timeline Event',
@@ -266,6 +285,14 @@ export function buildCommands(context: CommandContext): Command[] {
       icon: FolderCog,
       keywords: 'statistics word count',
       run: () => context.goto('settings', 'projects'),
+    },
+    {
+      id: 'settings-categories',
+      label: 'Settings → Categories',
+      group: 'Settings',
+      icon: Shapes,
+      keywords: 'custom fields document kinds character location creature tech',
+      run: () => context.goto('settings', 'categories'),
     },
     {
       id: 'settings-data',

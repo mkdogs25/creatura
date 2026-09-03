@@ -4,14 +4,11 @@ import { useProjectStore } from '@/store/projectStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useUiStore } from '@/store/uiStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { allDocs, docById } from '@/store/selectors';
+import { allDocs, categoryOf, docById } from '@/store/selectors';
 import { FolderTree } from '@/components/world-library/FolderTree';
 import { DocumentHeader } from '@/components/world-library/DocumentHeader';
 import { DocumentTabs } from '@/components/world-library/DocumentTabs';
-import { ProfileFields } from '@/components/metadata/ProfileFields';
-import { LocationProfileFields } from '@/components/metadata/LocationProfileFields';
-import { CreatureProfileFields } from '@/components/metadata/CreatureProfileFields';
-import { TechProfileFields } from '@/components/metadata/TechProfileFields';
+import { CategoryProfileFields } from '@/components/metadata/CategoryProfileFields';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { ManuscriptEditor } from '@/components/editor/ManuscriptEditor';
 import { EditorToolbar } from '@/components/editor/EditorToolbar';
@@ -60,6 +57,7 @@ export function WorldLibraryView() {
   const [resizing, setResizing] = useState<'left' | 'right' | null>(null);
 
   const doc = useMemo(() => docById(bundle, activeDocId), [bundle, activeDocId]);
+  const category = useMemo(() => (doc ? categoryOf(bundle, doc) : null), [bundle, doc]);
   const documents = useMemo(() => allDocs(bundle), [bundle]);
   const pruneTabs = useEditorStore((s) => s.pruneTabs);
 
@@ -115,7 +113,7 @@ export function WorldLibraryView() {
               Exit focus · Esc
             </Button>
           </div>
-          {showToolbar && doc?.kind !== 'character' && (
+          {showToolbar && (!doc || doc.kind === 'note') && (
             <div className="border-t border-[var(--color-line)]">
               <EditorToolbar editor={editor} />
             </div>
@@ -154,21 +152,21 @@ export function WorldLibraryView() {
         {!focusMode && <DocumentTabs />}
 
         {doc && !focusMode && <DocumentHeader doc={doc} />}
-        {doc && doc.kind === 'location' && !focusMode && <LocationProfileFields doc={doc} />}
-        {doc && doc.kind === 'creature' && !focusMode && <CreatureProfileFields doc={doc} />}
-        {doc && doc.kind === 'tech' && !focusMode && <TechProfileFields doc={doc} />}
 
         <div className={cn('flex min-h-0 flex-1', showMap ? 'flex-col xl:flex-row' : '')}>
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            {/* Characters have no prose editor — the profile fields are the
+            {/* Every category-backed doc (character, location, creature, tech,
+                custom) has no prose editor — its category's fields are the
                 whole editing surface, so they render here instead. */}
-            {doc && doc.kind === 'character' && !focusMode && <ProfileFields doc={doc} />}
+            {doc && doc.kind !== 'note' && !focusMode && category && (
+              <CategoryProfileFields doc={doc} category={category} />
+            )}
 
             {/* The editor stays mounted; only its visibility changes. */}
             <div
               className={cn(
                 'flex min-h-0 flex-1 flex-col',
-                (!doc || doc.kind === 'character') && 'hidden',
+                (!doc || doc.kind !== 'note') && 'hidden',
               )}
             >
               {showToolbar && !focusMode && (

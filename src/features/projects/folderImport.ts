@@ -1,5 +1,5 @@
 import type { Folder, NoteDoc, Project, ProjectBundle } from '@/types/domain';
-import { SCHEMA_VERSION } from '@/types/domain';
+import { SCHEMA_VERSION, builtinCategories } from '@/types/domain';
 import { newId } from '@/utils/id';
 import { markdownToDoc, titleFromFilename } from '@/utils/markdown';
 import { countWords, docToPlainText, makeExcerpt } from '@/utils/text';
@@ -106,10 +106,12 @@ export function buildProjectFromFolder(
   return {
     project,
     folders,
+    categories: builtinCategories(project.id, now),
     characters: [],
     locations: [],
     creatures: [],
     tech: [],
+    customDocs: [],
     notes,
     tags: [],
     relationships: [],

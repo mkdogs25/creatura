@@ -1,22 +1,16 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Cpu, FileText, MapPin, PawPrint, User } from 'lucide-react';
 import { useMentionStore } from '@/editor/extensions/mentionState';
+import { useProjectStore } from '@/store/projectStore';
+import { docIcon } from '@/components/world-library/FolderTree';
 import { cn } from '@/utils/cn';
-
-const ICONS = {
-  character: User,
-  location: MapPin,
-  creature: PawPrint,
-  tech: Cpu,
-  note: FileText,
-};
 
 /**
  * The `@` autocomplete popup. It renders in a portal and positions itself
  * against the caret rectangle reported by the suggestion plugin.
  */
 export function MentionMenu() {
+  const bundle = useProjectStore((s) => s.bundle);
   const { open, items, index, rect, select, hide, setIndex, query } = useMentionStore();
   const ref = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: -9999, left: -9999 });
@@ -47,7 +41,7 @@ export function MentionMenu() {
         </p>
       ) : (
         items.map((candidate, i) => {
-          const Icon = ICONS[candidate.doc.kind];
+          const Icon = docIcon(bundle, candidate.doc);
           return (
             <button
               key={candidate.doc.id}

@@ -14,6 +14,7 @@ import {
   MapPin,
   PawPrint,
   Search,
+  Shapes,
   Tag as TagIcon,
   Trash2,
   User,
@@ -21,7 +22,7 @@ import {
 import { useProjectStore } from '@/store/projectStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useUiStore, type PaletteMode } from '@/store/uiStore';
-import { docById, chapterById } from '@/store/selectors';
+import { docById, chapterById, orderedCategories } from '@/store/selectors';
 import { useNavigation } from '@/hooks/useNavigation';
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { buildCommands, type Command } from '@/features/search/commands';
@@ -34,6 +35,9 @@ const RESULT_ICON = {
   location: MapPin,
   creature: PawPrint,
   tech: Cpu,
+  // A custom-category result's real icon varies by category; this is a
+  // reasonable generic stand-in for the search list specifically.
+  custom: Shapes,
   note: FileText,
   folder: FolderIcon,
   event: CalendarClock,
@@ -194,9 +198,11 @@ function PaletteBody({ mode, seed }: { mode: PaletteMode; seed: string }) {
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const categories = useMemo(() => orderedCategories(bundle), [bundle]);
+
   const catalogue = useMemo(
-    () => [...contextualCommands, ...buildCommands(actions)],
-    [contextualCommands, actions],
+    () => [...contextualCommands, ...buildCommands({ ...actions, categories })],
+    [contextualCommands, actions, categories],
   );
 
   useEffect(() => {

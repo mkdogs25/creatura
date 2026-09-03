@@ -1,20 +1,11 @@
 import { create } from 'zustand';
-import {
-  defaultCharacterProfile,
-  defaultCreatureProfile,
-  defaultLocationProfile,
-  defaultTechProfile,
-} from '@/types/domain';
+import { categoryIdOf } from '@/types/domain';
 import type {
   AnyDoc,
-  CharacterDoc,
-  CharacterProfile,
-  CreatureDoc,
-  CreatureProfile,
+  Category,
+  CategoryField,
   DocKind,
   Folder,
-  LocationDoc,
-  LocationProfile,
   ManuscriptChapter,
   MapMarker,
   MapStamp,
@@ -22,6 +13,7 @@ import type {
   MatrixCell,
   NoteDoc,
   PointOfView,
+  Profile,
   Project,
   ProjectBundle,
   Relationship,
@@ -30,8 +22,6 @@ import type {
   Settings,
   StoryMap,
   Tag,
-  TechDoc,
-  TechProfile,
   TemplateId,
   TerrainKind,
   TimelineEvent,
@@ -66,25 +56,16 @@ import { colorForKey } from '@/utils/color';
 import { countWords, docToPlainText, emptyDoc, makeExcerpt } from '@/utils/text';
 import { buildProjectFromTemplate } from '@/data/templates';
 
-const DOC_TABLE: Record<DocKind, 'characters' | 'locations' | 'creatures' | 'tech' | 'notes'> = {
+const DOC_TABLE: Record<
+  DocKind,
+  'characters' | 'locations' | 'creatures' | 'tech' | 'customDocs' | 'notes'
+> = {
   character: 'characters',
   location: 'locations',
   creature: 'creatures',
   tech: 'tech',
+  custom: 'customDocs',
   note: 'notes',
-};
-
-/** Which field on each kind's profile is the single "category" value (mirrored
- * as one tag, swapped on change) and which is the comma/line list (mirrored as
- * several tags, diffed on change) — the same idea as Character's Role and
- * Personality Traits, generalised for the other structured-profile kinds. */
-const PROFILE_TAG_FIELDS: Record<
-  'location' | 'creature' | 'tech',
-  { category: string; list: string }
-> = {
-  location: { category: 'type', list: 'notableFeatures' },
-  creature: { category: 'species', list: 'abilities' },
-  tech: { category: 'category', list: 'properties' },
 };
 
 interface CreateProjectInput {
@@ -114,22 +95,23 @@ interface ProjectState {
   // ── documents ──────────────────────────────────────────────────────────
   createDoc: (input: {
     kind: DocKind;
+    /** Required when `kind` is `'custom'` — which category it belongs to. */
+    categoryId?: string;
     name?: string;
     folderId?: string | null;
     content?: RichContent;
     tagIds?: string[];
   }) => string;
   updateDoc: (docId: string, patch: Partial<AnyDoc>) => void;
-  /** Patches a character's structured profile — also keeps `name` in sync
-   * with the name fields, and mirrors Role/Personality Traits as tags. */
-  updateCharacterProfile: (docId: string, patch: Partial<CharacterProfile>) => void;
-  /** Patches a location, creature or tech doc's structured profile — mirrors
-   * its category and list fields as tags, the same idea as the character
-   * version but without name composition (these kinds are named plainly). */
-  updateEntityProfile: (
-    docId: string,
-    patch: Partial<LocationProfile> | Partial<CreatureProfile> | Partial<TechProfile>,
-  ) => void;
+  /**
+   * Patches a category-backed document's structured profile. Mirrors
+   * whichever of its category's fields are tag-mirrored (swapping a single
+   * tag, or diffing a comma/line list), and — for characters specifically,
+   * as long as the name fields still exist in the category — keeps `name`
+   * composed from title/first/middle/last so everything keyed off it (tabs,
+   * @mentions, search, the sidebar) stays in sync.
+   */
+  updateDocProfile: (docId: string, patch: Profile) => void;
   updateDocContent: (docId: string, content: RichContent) => void;
   restoreSnapshot: (docId: string, content: RichContent) => void;
   deleteDoc: (docId: string) => void;
@@ -140,6 +122,20 @@ interface ProjectState {
   updateFolder: (folderId: string, patch: Partial<Folder>) => void;
   deleteFolder: (folderId: string) => void;
   moveFolder: (folderId: string, parentId: string | null, order?: number) => void;
+
+  // ── categories ─────────────────────────────────────────────────────────
+  /** Creates a new custom category with one starting text field, returning
+   * its id. Character/Location/Creature/Tech are seeded once per project
+   * and can't be created again or deleted — only their fields change. */
+  createCategory: (input: { name: string; icon?: string }) => string;
+  updateCategory: (categoryId: string, patch: Partial<Pick<Category, 'name' | 'icon'>>) => void;
+  /** Deletes a custom category and every document in it. Refused for a
+   * built-in category — Matrix, Timeline and Maps all assume Character and
+   * Location specifically exist. */
+  deleteCategory: (categoryId: string) => void;
+  addCategoryField: (categoryId: string, field: Omit<CategoryField, 'id'>) => void;
+  updateCategoryField: (categoryId: string, fieldId: string, patch: Partial<CategoryField>) => void;
+  deleteCategoryField: (categoryId: string, fieldId: string) => void;
 
   // ── tags ───────────────────────────────────────────────────────────────
   createTag: (name: string, color?: string) => string;
@@ -223,6 +219,12 @@ function splitTraits(value: string): string[] {
   return [...new Set(value.split(/[,\n]/).map((t) => t.trim()).filter(Boolean))];
 }
 
+/** A category field's id — internal, never referenced outside its own
+ * category, so a short random string is enough (no `newId` entity prefix). */
+function randomFieldId(): string {
+  return `field-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function makeBaseDoc(
   projectId: string,
   kind: DocKind,
@@ -231,6 +233,7 @@ function makeBaseDoc(
   order: number,
   content: RichContent,
   tagIds: string[],
+  categoryId?: string,
 ): AnyDoc {
   const text = docToPlainText(content);
   const now = Date.now();
@@ -249,19 +252,15 @@ function makeBaseDoc(
     createdAt: now,
     updatedAt: now,
   };
-  if (kind === 'location')
-    return {
-      ...base,
-      kind: 'location',
-      mapId: null,
-      profile: defaultLocationProfile(),
-    } as LocationDoc;
-  if (kind === 'character')
-    return { ...base, kind: 'character', profile: defaultCharacterProfile() } as CharacterDoc;
-  if (kind === 'creature')
-    return { ...base, kind: 'creature', profile: defaultCreatureProfile() } as CreatureDoc;
-  if (kind === 'tech')
-    return { ...base, kind: 'tech', profile: defaultTechProfile() } as TechDoc;
+  // A profile always starts empty — its shape comes entirely from the
+  // doc's category, read live wherever it's rendered, so there's nothing to
+  // pre-fill here even for the four built-in kinds.
+  if (kind === 'location') return { ...base, kind: 'location', mapId: null, profile: {} } as AnyDoc;
+  if (kind === 'character') return { ...base, kind: 'character', profile: {} } as AnyDoc;
+  if (kind === 'creature') return { ...base, kind: 'creature', profile: {} } as AnyDoc;
+  if (kind === 'tech') return { ...base, kind: 'tech', profile: {} } as AnyDoc;
+  if (kind === 'custom')
+    return { ...base, kind: 'custom', categoryId: categoryId ?? '', profile: {} } as AnyDoc;
   return { ...base, kind: 'note' } as NoteDoc;
 }
 
@@ -284,6 +283,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       kind !== 'location' &&
       kind !== 'creature' &&
       kind !== 'tech' &&
+      kind !== 'custom' &&
       kind !== 'note'
     )
       return null;
@@ -388,10 +388,12 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       };
 
       source.folders.forEach((f) => register(f.id));
+      source.categories.forEach((c) => register(c.id));
       source.characters.forEach((d) => register(d.id));
       source.locations.forEach((d) => register(d.id));
       source.creatures.forEach((d) => register(d.id));
       source.tech.forEach((d) => register(d.id));
+      source.customDocs.forEach((d) => register(d.id));
       source.notes.forEach((d) => register(d.id));
       source.tags.forEach((t) => register(t.id));
       source.relationships.forEach((r) => register(r.id));
@@ -434,6 +436,11 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           projectId: projectId2,
           parentId: f.parentId ? remap(f.parentId) : null,
         })),
+        categories: source.categories.map((c) => ({
+          ...c,
+          id: remap(c.id),
+          projectId: projectId2,
+        })),
         characters: source.characters.map(reDoc),
         locations: source.locations.map((l) => ({
           ...reDoc(l),
@@ -441,6 +448,10 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         })),
         creatures: source.creatures.map(reDoc),
         tech: source.tech.map(reDoc),
+        customDocs: source.customDocs.map((d) => ({
+          ...reDoc(d),
+          categoryId: remap(d.categoryId),
+        })),
         notes: source.notes.map(reDoc),
         tags: source.tags.map((t) => ({ ...t, id: remap(t.id), projectId: projectId2 })),
         relationships: source.relationships.map((r) => ({
@@ -553,9 +564,10 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     },
 
     // ── documents ────────────────────────────────────────────────────────
-    createDoc: ({ kind, name, folderId = null, content, tagIds = [] }) => {
+    createDoc: ({ kind, categoryId, name, folderId = null, content, tagIds = [] }) => {
       const bundle = get().bundle;
       if (!bundle) return '';
+      if (kind === 'custom' && !categoryId) return '';
       const list = bundle[DOC_TABLE[kind]] as AnyDoc[];
       const doc = makeBaseDoc(
         bundle.project.id,
@@ -565,6 +577,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         nextOrder(list),
         content ?? emptyDoc(),
         tagIds,
+        categoryId,
       );
       set((state) =>
         patchBundle(state, (b) => ({
@@ -588,13 +601,16 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       write(() => putDoc(next));
     },
 
-    updateCharacterProfile: (docId, patch) => {
+    updateDocProfile: (docId, patch) => {
       const bundle = get().bundle;
       if (!bundle) return;
-      const current = bundle.characters.find((c) => c.id === docId);
-      if (!current) return;
+      const current = findDoc(bundle, docId);
+      if (!current || current.kind === 'note') return;
 
-      const nextProfile: CharacterProfile = { ...current.profile, ...patch };
+      const categoryId = categoryIdOf(current);
+      const category = bundle.categories.find((c) => c.id === categoryId);
+      const currentProfile = current.profile;
+      const nextProfile: Profile = { ...currentProfile, ...patch };
       let tagIds = current.tagIds;
 
       const detachTagNamed = (name: string) => {
@@ -610,92 +626,54 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         if (id && !tagIds.includes(id)) tagIds = [...tagIds, id];
       };
 
-      // Role and Personality Traits double as tags, so filling in the
-      // profile is also a quick way to tag a character without leaving the
-      // note — swapping the old value's tag out for the new one's in.
-      if (patch.role !== undefined && patch.role !== current.profile.role) {
-        detachTagNamed(current.profile.role);
-        attachTagNamed(patch.role);
-      }
-      if (patch.personalityTraits !== undefined) {
-        const oldTraits = splitTraits(current.profile.personalityTraits);
-        const newTraits = splitTraits(patch.personalityTraits);
-        const newLower = new Set(newTraits.map((t) => t.toLowerCase()));
-        for (const trait of oldTraits) {
-          if (!newLower.has(trait.toLowerCase())) detachTagNamed(trait);
+      // Any field the category marks as tag-mirrored doubles as a quick way
+      // to tag the document without leaving the note: `single` swaps one tag
+      // out for the new value, `list` diffs a comma/line-separated value
+      // into several.
+      for (const field of category?.fields ?? []) {
+        if (field.tagMirror === 'none' || !(field.id in patch)) continue;
+        const oldValue = currentProfile[field.id] ?? '';
+        const newValue = patch[field.id] ?? '';
+        if (field.tagMirror === 'single') {
+          if (newValue !== oldValue) {
+            detachTagNamed(oldValue);
+            attachTagNamed(newValue);
+          }
+        } else {
+          const oldItems = splitTraits(oldValue);
+          const newItems = splitTraits(newValue);
+          const newLower = new Set(newItems.map((t) => t.toLowerCase()));
+          for (const item of oldItems) {
+            if (!newLower.has(item.toLowerCase())) detachTagNamed(item);
+          }
+          for (const item of newItems) attachTagNamed(item);
         }
-        for (const trait of newTraits) attachTagNamed(trait);
       }
 
-      // The structured name fields are the source of truth for the
-      // character's canonical name once they're in use — everything keyed
-      // off `name` (tabs, @mentions, search, the sidebar) should read what
-      // the profile says rather than drift from it.
-      const nameFieldsTouched = (['firstName', 'middleName', 'lastName'] as const).some(
-        (key) => key in patch,
-      );
-      const composedName = [nextProfile.firstName, nextProfile.middleName, nextProfile.lastName]
-        .filter(Boolean)
-        .join(' ')
-        .trim();
+      // Characters compose their canonical name from title/first/middle/last
+      // whenever those fields are still part of the category — everything
+      // keyed off `name` (tabs, @mentions, search, the sidebar) then reads
+      // what the profile says rather than drift from it. A project that has
+      // deleted those fields just keeps whatever name was typed manually.
+      let nextName = current.name;
+      if (current.kind === 'character') {
+        const nameFieldsTouched = (['firstName', 'middleName', 'lastName'] as const).some(
+          (key) => key in patch,
+        );
+        const composedName = [nextProfile.firstName, nextProfile.middleName, nextProfile.lastName]
+          .filter(Boolean)
+          .join(' ')
+          .trim();
+        if (nameFieldsTouched && composedName) nextName = composedName;
+      }
 
-      const next: CharacterDoc = {
+      const next = {
         ...current,
         profile: nextProfile,
         tagIds,
-        name: nameFieldsTouched && composedName ? composedName : current.name,
+        name: nextName,
         updatedAt: Date.now(),
-      };
-      set((state) => patchBundle(state, (b) => replaceDoc(b, next)));
-      write(() => putDoc(next));
-    },
-
-    updateEntityProfile: (docId, patch) => {
-      const bundle = get().bundle;
-      if (!bundle) return;
-      const kind = kindOfId(docId);
-      if (kind !== 'location' && kind !== 'creature' && kind !== 'tech') return;
-      const list = bundle[DOC_TABLE[kind]] as Array<
-        (LocationDoc | CreatureDoc | TechDoc) & { profile: Record<string, string> }
-      >;
-      const current = list.find((d) => d.id === docId);
-      if (!current) return;
-
-      const patchRecord = patch as Record<string, string>;
-      const nextProfile = { ...current.profile, ...patchRecord };
-      let tagIds = current.tagIds;
-
-      const detachTagNamed = (name: string) => {
-        const clean = name.trim().toLowerCase();
-        if (!clean) return;
-        const tag = get().bundle?.tags.find((t) => t.name.toLowerCase() === clean);
-        if (tag) tagIds = tagIds.filter((id) => id !== tag.id);
-      };
-      const attachTagNamed = (name: string) => {
-        const clean = name.trim();
-        if (!clean) return;
-        const id = get().createTag(clean);
-        if (id && !tagIds.includes(id)) tagIds = [...tagIds, id];
-      };
-
-      // Same idea as Character's Role/Personality Traits: the category field
-      // mirrors as a single swapped tag, the list field as several diffed ones.
-      const { category, list: listField } = PROFILE_TAG_FIELDS[kind];
-      if (patchRecord[category] !== undefined && patchRecord[category] !== current.profile[category]) {
-        detachTagNamed(current.profile[category]);
-        attachTagNamed(patchRecord[category]);
-      }
-      if (patchRecord[listField] !== undefined) {
-        const oldItems = splitTraits(current.profile[listField]);
-        const newItems = splitTraits(patchRecord[listField]);
-        const newLower = new Set(newItems.map((t) => t.toLowerCase()));
-        for (const item of oldItems) {
-          if (!newLower.has(item.toLowerCase())) detachTagNamed(item);
-        }
-        for (const item of newItems) attachTagNamed(item);
-      }
-
-      const next = { ...current, profile: nextProfile, tagIds, updatedAt: Date.now() } as AnyDoc;
+      } as AnyDoc;
       set((state) => patchBundle(state, (b) => replaceDoc(b, next)));
       write(() => putDoc(next));
     },
@@ -894,6 +872,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         ...bundle.locations,
         ...bundle.creatures,
         ...bundle.tech,
+        ...bundle.customDocs,
         ...bundle.notes,
       ];
       const orphaned = allDocs.filter((doc) => doc.folderId && doomed.has(doc.folderId));
@@ -910,6 +889,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           locations: clearFolder(b.locations),
           creatures: clearFolder(b.creatures),
           tech: clearFolder(b.tech),
+          customDocs: clearFolder(b.customDocs),
           notes: clearFolder(b.notes),
           project: touchProject(b),
         })),
@@ -947,6 +927,135 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         })),
       );
       write(() => putRecord('folders', next));
+    },
+
+    // ── categories ───────────────────────────────────────────────────────
+    createCategory: ({ name, icon = 'folder' }) => {
+      const bundle = get().bundle;
+      if (!bundle) return '';
+      const now = Date.now();
+      const category: Category = {
+        id: newId('category'),
+        projectId: bundle.project.id,
+        name: name.trim() || 'New category',
+        icon,
+        builtin: false,
+        fields: [{ id: randomFieldId(), label: 'Details', type: 'textarea', tagMirror: 'none' }],
+        order: nextOrder(bundle.categories),
+        createdAt: now,
+        updatedAt: now,
+      };
+      set((state) => patchBundle(state, (b) => ({ ...b, categories: [...b.categories, category] })));
+      write(() => putRecord('categories', category));
+      return category.id;
+    },
+
+    updateCategory: (categoryId, patch) => {
+      const bundle = get().bundle;
+      if (!bundle) return;
+      const current = bundle.categories.find((c) => c.id === categoryId);
+      if (!current) return;
+      const next: Category = { ...current, ...patch, updatedAt: Date.now() };
+      set((state) =>
+        patchBundle(state, (b) => ({
+          ...b,
+          categories: b.categories.map((c) => (c.id === categoryId ? next : c)),
+        })),
+      );
+      write(() => putRecord('categories', next));
+    },
+
+    deleteCategory: (categoryId) => {
+      const bundle = get().bundle;
+      if (!bundle) return;
+      const category = bundle.categories.find((c) => c.id === categoryId);
+      // Character and Location specifically are assumed to exist by Matrix,
+      // Timeline and Maps — only a custom category can be removed outright.
+      if (!category || category.builtin) return;
+
+      const doomedDocs = bundle.customDocs.filter((d) => d.categoryId === categoryId);
+      const doomedIds = new Set(doomedDocs.map((d) => d.id));
+      const staleRelationships = bundle.relationships.filter(
+        (r) => doomedIds.has(r.fromId) || doomedIds.has(r.toId),
+      );
+
+      set((state) =>
+        patchBundle(state, (b) => ({
+          ...b,
+          categories: b.categories.filter((c) => c.id !== categoryId),
+          customDocs: b.customDocs.filter((d) => d.categoryId !== categoryId),
+          relationships: b.relationships.filter(
+            (r) => !doomedIds.has(r.fromId) && !doomedIds.has(r.toId),
+          ),
+          project: touchProject(b),
+        })),
+      );
+
+      write(async () => {
+        await deleteRecord('categories', categoryId);
+        await deleteRecords('customDocs', [...doomedIds]);
+        await deleteRecords('relationships', staleRelationships.map((r) => r.id));
+        await Promise.all(doomedDocs.map((doc) => deleteSnapshotsFor(doc.id)));
+      });
+    },
+
+    addCategoryField: (categoryId, field) => {
+      const bundle = get().bundle;
+      if (!bundle) return;
+      const current = bundle.categories.find((c) => c.id === categoryId);
+      if (!current) return;
+      const next: Category = {
+        ...current,
+        fields: [...current.fields, { ...field, id: randomFieldId() }],
+        updatedAt: Date.now(),
+      };
+      set((state) =>
+        patchBundle(state, (b) => ({
+          ...b,
+          categories: b.categories.map((c) => (c.id === categoryId ? next : c)),
+        })),
+      );
+      write(() => putRecord('categories', next));
+    },
+
+    updateCategoryField: (categoryId, fieldId, patch) => {
+      const bundle = get().bundle;
+      if (!bundle) return;
+      const current = bundle.categories.find((c) => c.id === categoryId);
+      if (!current) return;
+      const next: Category = {
+        ...current,
+        fields: current.fields.map((f) => (f.id === fieldId ? { ...f, ...patch, id: f.id } : f)),
+        updatedAt: Date.now(),
+      };
+      set((state) =>
+        patchBundle(state, (b) => ({
+          ...b,
+          categories: b.categories.map((c) => (c.id === categoryId ? next : c)),
+        })),
+      );
+      write(() => putRecord('categories', next));
+    },
+
+    deleteCategoryField: (categoryId, fieldId) => {
+      const bundle = get().bundle;
+      if (!bundle) return;
+      const current = bundle.categories.find((c) => c.id === categoryId);
+      if (!current) return;
+      const next: Category = {
+        ...current,
+        fields: current.fields.filter((f) => f.id !== fieldId),
+        updatedAt: Date.now(),
+      };
+      set((state) =>
+        patchBundle(state, (b) => ({
+          ...b,
+          categories: b.categories.map((c) => (c.id === categoryId ? next : c)),
+        })),
+      );
+      write(() => putRecord('categories', next));
+      // Existing documents' profile[fieldId] values are deliberately left in
+      // place — they just stop rendering, rather than being erased outright.
     },
 
     // ── tags ─────────────────────────────────────────────────────────────
@@ -1002,6 +1111,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           locations: strip(b.locations),
           creatures: strip(b.creatures),
           tech: strip(b.tech),
+          customDocs: strip(b.customDocs),
           notes: strip(b.notes),
           events: strip(b.events),
           cells: strip(b.cells),
@@ -1017,6 +1127,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           ...after.locations,
           ...after.creatures,
           ...after.tech,
+          ...after.customDocs,
           ...after.notes,
         ];
         await Promise.all([
@@ -1631,6 +1742,7 @@ function defaultDocName(kind: DocKind): string {
   if (kind === 'location') return 'New location';
   if (kind === 'creature') return 'New creature';
   if (kind === 'tech') return 'New tech';
+  if (kind === 'custom') return 'New entry';
   return 'Untitled note';
 }
 
@@ -1659,10 +1771,12 @@ function remapContentReferences(
 /** Table name for a project-scoped collection, exported for the export routine. */
 export const PROJECT_COLLECTIONS: ProjectTableName[] = [
   'folders',
+  'categories',
   'characters',
   'locations',
   'creatures',
   'tech',
+  'customDocs',
   'notes',
   'tags',
   'relationships',

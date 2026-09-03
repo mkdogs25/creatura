@@ -44,6 +44,7 @@ export function ProjectsPanel() {
     ['Locations', formatNumber(stats.locations)],
     ['Creatures', formatNumber(stats.creatures)],
     ['Tech', formatNumber(stats.tech)],
+    ['Custom entries', formatNumber(stats.custom)],
     ['Folders', formatNumber(stats.folders)],
     ['Timeline Events', formatNumber(stats.events)],
     ['Points of view', formatNumber(stats.povs)],
