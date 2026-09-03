@@ -13,12 +13,17 @@ network requests for your content.
 
 Use this link to open it: https://mkdogs25.github.io/creatura/
 
-## The three workspaces
+## The workspaces
 
-**World Library** — a nested folder tree, a Tiptap manuscript editor set in
-Charter, and a details panel for tags, metadata fields and relationships.
-Typing `@` anywhere in prose opens an autocomplete over every character,
-location and note in the project.
+**World Library** — a nested folder tree of Notes and category documents
+(Characters, Locations, Creatures, Tech, and any category you define — see
+below), a details panel for tags, metadata fields and relationships, and a
+Tiptap prose editor set in Charter for Notes. Typing `@` anywhere in prose
+opens an autocomplete over every character, location and note in the project.
+
+**Manuscript** — the actual draft: a reorderable sidebar of chapters, a
+distraction-light editor, running word counts against a goal, and export to
+Markdown or PDF.
 
 **Timeline Mapper** — a horizontally scrolling chronology. Events drag to
 reposition, their right edge drags to change duration, and dragging one between
@@ -27,7 +32,25 @@ same axis.
 
 **Matrix View** — every character against every location. Cells are populated
 from live project data (shared timeline events, relationships) plus whatever
-you write into the intersection yourself.
+you write into the intersection yourself. Off by default; enable its tab in
+Settings → Interface, or reach it anytime through ⌘K.
+
+## Categories: document kinds you define
+
+Character, Location, Creature and Tech are built in, but they're not special —
+each is a **Category**: a name, an icon, and a list of input fields. A
+document in a category fills in those fields directly (a profile form, not
+prose), so the same fact — a character's role, a location's danger level —
+always lives in exactly one place instead of drifting into a paragraph
+somewhere too. Notes are the exception and keep the free-form prose editor.
+
+From **Settings → Categories** you can rename a category, change its icon,
+and add, rename or delete its fields — including on the four built-ins. You
+can also create entirely new categories (Factions, Artifacts, Vehicles,
+whatever your project needs); they behave identically to the built-ins and
+show up immediately in Quick Create, the command palette and every folder's
+"New here" menu. Deleting a field only stops it from showing — a document's
+existing value is kept, not erased.
 
 ## How the pieces fit together
 
@@ -46,12 +69,14 @@ That has two consequences worth stating plainly:
 
 ```
 PROJECT
-  ├── Folders ── Characters · Locations · Notes
-  ├── Tags · Relationships · Timeline Events · POVs · Sections
+  ├── Folders ── Characters · Locations · Creatures · Tech · Notes · your categories
+  ├── Categories ── field definitions the above documents fill in
+  ├── Chapters (the manuscript) · Tags · Relationships
+  ├── Timeline Events · POVs · Sections
   └── Maps ── Markers · Matrix Cells
                     │
-        ┌───────────┼───────────┐
-     Library     Timeline     Matrix
+      ┌─────────┬───┴────┬─────────┐
+   Library  Manuscript  Timeline  Matrix
 ```
 
 ## Architecture
@@ -60,7 +85,8 @@ PROJECT
 src/
 ├── app/            Application root, boot sequence, version
 ├── components/     UI by feature area (ui, navigation, editor, world-library,
-│                   timeline, matrix, map, metadata, settings, command-palette)
+│                   manuscript, timeline, matrix, map, metadata, settings,
+│                   command-palette)
 ├── data/           Genre templates and the demo project's seed data
 ├── db/             Dexie database, Zod schemas, migrations, repositories
 ├── editor/         Tiptap nodes and extensions (entity references, @ suggestion)
@@ -91,7 +117,12 @@ moved.
   de-duplicated, and stripped of references to records the file does not
   contain — so importing the same file twice yields two independent projects
   rather than one overwriting the other.
-- **Schema migrations** are additive and live in `src/db/migrations`.
+- **Local backup folder.** Optionally connect a folder on disk (via the File
+  System Access API) and Creatura mirrors the active project to it on an
+  interval, independent of IndexedDB.
+- **Schema migrations** are additive, live in `src/db/migrations`, and never
+  discard data — a migration that adds structure (like the category system)
+  backfills it from what's already there instead of requiring a fresh start.
 
 ## Keyboard
 
