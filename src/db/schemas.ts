@@ -94,6 +94,7 @@ export const categorySchema = z.object({
   name: z.string().catch('Category'),
   icon: z.string().catch('folder'),
   builtin: z.boolean().catch(false),
+  builtinKind: z.enum(['note', 'character', 'location', 'creature', 'tech', 'custom']).optional(),
   fields: z.array(categoryFieldSchema).catch([]),
   order: z.number().catch(0),
   createdAt: timestamp.catch(() => Date.now()),

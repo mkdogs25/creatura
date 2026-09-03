@@ -113,6 +113,11 @@ export interface Category {
   name: string;
   icon: string;
   builtin: boolean;
+  /** Set only on the four built-ins: which DocKind they back. `id` is
+   * namespaced per project (see `builtinCategories`) so it can't be used to
+   * recover this the way it once was — code that needs the kind back reads
+   * this field instead of parsing `id`. */
+  builtinKind?: DocKind;
   fields: CategoryField[];
   order: number;
   createdAt: number;
@@ -161,13 +166,16 @@ export interface NoteDoc extends BaseDoc {
 
 export type AnyDoc = CharacterDoc | LocationDoc | CreatureDoc | TechDoc | CustomDoc | NoteDoc;
 
-/** The category id a document's profile fields come from — the four
- * built-ins double as their own category id, so only `custom` docs need a
- * separate lookup. Null for notes, which have no category. */
+/** The category id a document's profile fields come from. A built-in
+ * category's id is namespaced by project (`${projectId}:${kind}` — see
+ * `builtinCategories`), since the four kinds are shared across every
+ * project in the same local database and a bare 'character' would collide
+ * between them. `custom` docs already carry their own id. Null for notes,
+ * which have no category. */
 export function categoryIdOf(doc: AnyDoc): string | null {
   if (doc.kind === 'note') return null;
   if (doc.kind === 'custom') return doc.categoryId;
-  return doc.kind;
+  return `${doc.projectId}:${doc.kind}`;
 }
 
 /**
@@ -185,7 +193,8 @@ export function builtinCategories(projectId: string, now: number): Category[] {
   return [
     {
       ...base,
-      id: 'character',
+      id: `${projectId}:character`,
+      builtinKind: 'character',
       name: 'Characters',
       icon: 'users',
       order: 0,
@@ -204,7 +213,8 @@ export function builtinCategories(projectId: string, now: number): Category[] {
     },
     {
       ...base,
-      id: 'location',
+      id: `${projectId}:location`,
+      builtinKind: 'location',
       name: 'Locations',
       icon: 'map-pin',
       order: 1,
@@ -221,7 +231,8 @@ export function builtinCategories(projectId: string, now: number): Category[] {
     },
     {
       ...base,
-      id: 'creature',
+      id: `${projectId}:creature`,
+      builtinKind: 'creature',
       name: 'Creatures',
       icon: 'paw-print',
       order: 2,
@@ -238,7 +249,8 @@ export function builtinCategories(projectId: string, now: number): Category[] {
     },
     {
       ...base,
-      id: 'tech',
+      id: `${projectId}:tech`,
+      builtinKind: 'tech',
       name: 'Tech',
       icon: 'cpu',
       order: 3,

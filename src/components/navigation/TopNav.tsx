@@ -73,11 +73,7 @@ export function TopNav() {
       id: category.id,
       label: singularize(category.name),
       icon: folderIcon(category.icon),
-      onSelect: () =>
-        actions.createDoc(
-          category.builtin ? (category.id as 'character' | 'location' | 'creature' | 'tech') : 'custom',
-          category.id,
-        ),
+      onSelect: () => actions.createDoc(category.builtinKind ?? 'custom', category.id),
     })),
     {
       id: 'event',

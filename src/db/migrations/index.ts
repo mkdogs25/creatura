@@ -90,4 +90,27 @@ export function applyMigrations(db: Dexie): void {
           });
       }
     });
+
+  // v8 — fixes a data bug from v7: the four built-in categories were given
+  // bare ids ('character', 'location', 'creature', 'tech'), but every
+  // project in this database shares one `categories` table keyed by `id`.
+  // Any second project — including the demo project, one tap away from
+  // onboarding — silently stole the first project's rows on save, leaving
+  // it with no built-in categories at all: profile forms stopped rendering
+  // and the sidebar fell back to the plain note icon ("characters became
+  // notes"). Built-in ids are now namespaced per project
+  // (`${projectId}:${kind}`, see `builtinCategories`), so this deletes the
+  // old collision-prone rows and re-seeds every project's four built-ins
+  // fresh. Any edit made to a built-in category's fields before this fix
+  // can't be recovered — the shared, overwritten row makes it impossible to
+  // tell which project's edit was the real one — but no document or its
+  // data is touched here.
+  db.version(8).upgrade(async (tx) => {
+    const now = Date.now();
+    await tx.table('categories').bulkDelete(['character', 'location', 'creature', 'tech']);
+    const projects = await tx.table('projects').toArray();
+    for (const project of projects as Array<{ id: string }>) {
+      await tx.table('categories').bulkPut(builtinCategories(project.id, now));
+    }
+  });
 }

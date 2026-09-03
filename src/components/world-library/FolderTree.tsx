@@ -231,9 +231,7 @@ function FolderRow({
 
   const addDoc = (category: Category) => {
     const id = createDoc({
-      kind: category.builtin
-        ? (category.id as 'character' | 'location' | 'creature' | 'tech')
-        : 'custom',
+      kind: category.builtinKind ?? 'custom',
       categoryId: category.id,
       folderId: folder.id,
     });
