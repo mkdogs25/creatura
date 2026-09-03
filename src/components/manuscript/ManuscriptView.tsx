@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BookText, X } from 'lucide-react';
+import { BookText, PanelLeft, X } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useUiStore } from '@/store/uiStore';
@@ -14,6 +14,7 @@ import { EditorStatusBar } from '@/components/editor/EditorStatusBar';
 import { ManuscriptDetailsPanel } from '@/components/manuscript/ManuscriptDetailsPanel';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { Drawer } from '@/components/ui/Drawer';
 import { ResizeHandle } from '@/components/ui/ResizeHandle';
 import { FocusEdgePanel } from '@/components/ui/FocusEdgePanel';
@@ -73,7 +74,7 @@ export function ManuscriptView() {
       >
         {!isNarrow && (
           <div style={{ width: interfaceSettings.leftPanelWidth }} className="h-full">
-            <ChapterSidebar />
+            <ChapterSidebar onCollapse={() => toggleLeftPanel(false)} />
           </div>
         )}
       </aside>
@@ -121,6 +122,20 @@ export function ManuscriptView() {
       {/* Centre panel — the draft. Never unmounted. */}
       <main className="relative flex min-w-0 flex-1 flex-col bg-[var(--color-canvas)]">
         <FindReplaceBar />
+
+        {!showLeft && !focusMode && !isNarrow && (
+          <Tooltip label="Show chapter list panel">
+            <Button
+              variant="secondary"
+              size="icon-sm"
+              aria-label="Show chapter list panel"
+              onClick={() => toggleLeftPanel(true)}
+              className="absolute top-2 left-2 z-20 shadow-[var(--shadow-float)]"
+            >
+              <PanelLeft size={14} />
+            </Button>
+          </Tooltip>
+        )}
 
         {chapter && !focusMode && <ChapterHeader chapter={chapter} />}
 

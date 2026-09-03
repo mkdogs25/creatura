@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, MapPin, Plus, User, X } from 'lucide-react';
+import { BookOpen, MapPin, PanelLeft, Plus, User, X } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useUiStore } from '@/store/uiStore';
@@ -7,6 +7,8 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { allDocs, docById } from '@/store/selectors';
 import { FolderTree } from '@/components/world-library/FolderTree';
 import { DocumentHeader } from '@/components/world-library/DocumentHeader';
+import { DocumentTabs } from '@/components/world-library/DocumentTabs';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { ManuscriptEditor } from '@/components/editor/ManuscriptEditor';
 import { EditorToolbar } from '@/components/editor/EditorToolbar';
 import { FindReplaceBar } from '@/components/editor/FindReplaceBar';
@@ -55,12 +57,13 @@ export function WorldLibraryView() {
 
   const doc = useMemo(() => docById(bundle, activeDocId), [bundle, activeDocId]);
   const documents = useMemo(() => allDocs(bundle), [bundle]);
+  const pruneTabs = useEditorStore((s) => s.pruneTabs);
 
-  // If the open document is deleted elsewhere, fall back to the empty state
-  // rather than leaving a header pointing at nothing.
+  // If a doc behind an open tab (active or not) is deleted elsewhere, drop
+  // its tab rather than leaving one pointing at nothing.
   useEffect(() => {
-    if (activeDocId && !doc) setActiveDoc(null);
-  }, [activeDocId, doc, setActiveDoc]);
+    pruneTabs(new Set(documents.map((d) => d.id)));
+  }, [documents, pruneTabs]);
 
   const showLeft = leftOpen && !focusMode && !isNarrow;
   const showRight = rightOpen && !focusMode && !isNarrow && Boolean(doc);
@@ -81,7 +84,7 @@ export function WorldLibraryView() {
         {/* Skip the column entirely on narrow screens — it becomes a drawer. */}
         {!isNarrow && (
           <div style={{ width: interfaceSettings.leftPanelWidth }} className="h-full">
-            <FolderTree />
+            <FolderTree onCollapse={() => toggleLeftPanel(false)} />
           </div>
         )}
       </aside>
@@ -129,6 +132,22 @@ export function WorldLibraryView() {
       {/* Centre panel — the manuscript. Never unmounted. */}
       <main className="relative flex min-w-0 flex-1 flex-col bg-[var(--color-canvas)]">
         <FindReplaceBar />
+
+        {!showLeft && !focusMode && !isNarrow && (
+          <Tooltip label="Show library panel">
+            <Button
+              variant="secondary"
+              size="icon-sm"
+              aria-label="Show library panel"
+              onClick={() => toggleLeftPanel(true)}
+              className="absolute top-2 left-2 z-20 shadow-[var(--shadow-float)]"
+            >
+              <PanelLeft size={14} />
+            </Button>
+          </Tooltip>
+        )}
+
+        {!focusMode && <DocumentTabs />}
 
         {doc && !focusMode && <DocumentHeader doc={doc} />}
 

@@ -32,6 +32,7 @@ export function DocumentHeader({ doc }: { doc: AnyDoc }) {
   const deleteDoc = useProjectStore((s) => s.deleteDoc);
   const createDoc = useProjectStore((s) => s.createDoc);
   const setActiveDoc = useEditorStore((s) => s.setActiveDoc);
+  const closeTab = useEditorStore((s) => s.closeTab);
   const setFocusMode = useUiStore((s) => s.setFocusMode);
   const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel);
   const toggleRightPanel = useUiStore((s) => s.toggleRightPanel);
@@ -113,7 +114,7 @@ export function DocumentHeader({ doc }: { doc: AnyDoc }) {
           }));
         if (!ok) return;
         deleteDoc(doc.id);
-        setActiveDoc(null);
+        closeTab(doc.id);
       },
     },
   ];

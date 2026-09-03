@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookText, Copy, FileUp, Pencil, Plus, Trash2 } from 'lucide-react';
+import { BookText, Copy, FileUp, PanelLeftClose, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useUiStore } from '@/store/uiStore';
@@ -18,7 +18,13 @@ import type { ManuscriptChapter } from '@/types/domain';
  * unlike the library there is no nesting — reordered by dragging, same
  * gesture as the folder tree.
  */
-export function ChapterSidebar() {
+interface ChapterSidebarProps {
+  /** Only passed by the primary sidebar column — the focus-mode edge panel
+   * and the narrow-screen drawer already have their own way to dismiss. */
+  onCollapse?: () => void;
+}
+
+export function ChapterSidebar({ onCollapse }: ChapterSidebarProps = {}) {
   const bundle = useProjectStore((s) => s.bundle);
   const createChapter = useProjectStore((s) => s.createChapter);
   const reorderChapter = useProjectStore((s) => s.reorderChapter);
@@ -43,6 +49,18 @@ export function ChapterSidebar() {
       <header className="flex items-center justify-between gap-2 px-3 py-2.5">
         <h2 className="type-label">Manuscript</h2>
         <div className="flex items-center gap-0.5">
+          {onCollapse && (
+            <Tooltip label="Collapse chapter list panel">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Collapse chapter list panel"
+                onClick={onCollapse}
+              >
+                <PanelLeftClose size={14} />
+              </Button>
+            </Tooltip>
+          )}
           <Tooltip label="Import file as chapter">
             <Button
               variant="ghost"

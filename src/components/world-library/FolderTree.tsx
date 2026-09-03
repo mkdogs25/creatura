@@ -6,6 +6,7 @@ import {
   FileUp,
   FolderPlus,
   MapPin,
+  PanelLeftClose,
   Pencil,
   Trash2,
   User,
@@ -29,18 +30,24 @@ import { Button } from '@/components/ui/Button';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { cn } from '@/utils/cn';
 
-const DOC_ICON = { character: User, location: MapPin, note: FileText };
+export const DOC_ICON = { character: User, location: MapPin, note: FileText };
 
 interface DragPayload {
   type: 'doc' | 'folder';
   id: string;
 }
 
+interface FolderTreeProps {
+  /** Only passed by the primary sidebar column — the focus-mode edge panel
+   * and the narrow-screen drawer already have their own way to dismiss. */
+  onCollapse?: () => void;
+}
+
 /**
  * The library's directory. Folders nest arbitrarily; documents live inside
  * them or at the project root, and both can be reordered by dragging.
  */
-export function FolderTree() {
+export function FolderTree({ onCollapse }: FolderTreeProps = {}) {
   const bundle = useProjectStore((s) => s.bundle);
   const createFolder = useProjectStore((s) => s.createFolder);
   const createDoc = useProjectStore((s) => s.createDoc);
@@ -73,6 +80,18 @@ export function FolderTree() {
       <header className="flex items-center justify-between gap-2 px-3 py-2.5">
         <h2 className="type-label">Library</h2>
         <div className="flex items-center gap-0.5">
+          {onCollapse && (
+            <Tooltip label="Collapse library panel">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Collapse library panel"
+                onClick={onCollapse}
+              >
+                <PanelLeftClose size={14} />
+              </Button>
+            </Tooltip>
+          )}
           <Tooltip label="New folder">
             <Button
               variant="ghost"
