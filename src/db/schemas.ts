@@ -7,7 +7,7 @@
  * optional fields get defaults rather than rejecting the record outright.
  */
 import { z } from 'zod';
-import { SCHEMA_VERSION } from '@/types/domain';
+import { SCHEMA_VERSION, defaultCharacterProfile } from '@/types/domain';
 import type { RichContent } from '@/types/domain';
 
 const timestamp = z.number().finite().nonnegative();
@@ -42,9 +42,25 @@ const baseDocShape = {
   updatedAt: timestamp.catch(() => Date.now()),
 };
 
+export const characterProfileSchema = z
+  .object({
+    title: z.string().catch(''),
+    firstName: z.string().catch(''),
+    middleName: z.string().catch(''),
+    lastName: z.string().catch(''),
+    role: z.string().catch(''),
+    age: z.string().catch(''),
+    gender: z.string().catch(''),
+    occupation: z.string().catch(''),
+    physicalFeatures: z.string().catch(''),
+    personalityTraits: z.string().catch(''),
+  })
+  .catch(defaultCharacterProfile);
+
 export const characterSchema = z.object({
   ...baseDocShape,
   kind: z.literal('character').catch('character'),
+  profile: characterProfileSchema.default(defaultCharacterProfile),
 });
 
 export const locationSchema = z.object({

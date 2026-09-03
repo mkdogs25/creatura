@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { X } from 'lucide-react';
 import { useEditorStore } from '@/store/editorStore';
 import { useProjectStore } from '@/store/projectStore';
@@ -26,6 +26,13 @@ export function DocumentTabs() {
     [openTabIds, bundle],
   );
 
+  // Only a freshly-opened tab pops in — re-rendering the whole strip on
+  // every switch would replay the animation on tabs that were already there.
+  const seenIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const id of openTabIds) seenIds.current.add(id);
+  }, [openTabIds]);
+
   if (tabs.length === 0) return null;
 
   return (
@@ -37,6 +44,7 @@ export function DocumentTabs() {
       {tabs.map((doc) => {
         const Icon = DOC_ICON[doc.kind];
         const active = doc.id === activeDocId;
+        const isNew = !seenIds.current.has(doc.id);
         return (
           <div
             key={doc.id}
@@ -55,6 +63,7 @@ export function DocumentTabs() {
               active
                 ? 'bg-[var(--color-canvas)] text-[var(--color-ink)]'
                 : 'text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-raised)] hover:text-[var(--color-ink)]',
+              isNew && 'animate-pop',
             )}
           >
             <Icon size={12} className="shrink-0 opacity-70" aria-hidden="true" />

@@ -41,8 +41,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type={type}
       className={cn(
         'inline-flex items-center rounded-[var(--radius-control)] whitespace-nowrap',
-        'transition-[background-color,color,border-color,filter] duration-150',
-        'disabled:opacity-45 disabled:pointer-events-none select-none',
+        'transition-[background-color,color,border-color,filter,transform] duration-150',
+        'active:scale-[0.96] active:duration-75',
+        'disabled:opacity-45 disabled:pointer-events-none disabled:active:scale-100 select-none',
         VARIANTS[variant],
         SIZES[size],
         className,

@@ -70,8 +70,49 @@ export interface BaseDoc {
   updatedAt: number;
 }
 
+/**
+ * A structured character profile, filled in beside the prose rather than
+ * buried in generic metadata fields — mainly so the app actually knows a
+ * character's name in parts. Without that, "Professor Oshira" and
+ * "Professor Bristol Oshira" read as two different people to the name
+ * detector; with a title and first/last name on record, both resolve back
+ * to the same one (see `expandKnownNames`).
+ */
+export interface CharacterProfile {
+  title: string;
+  firstName: string;
+  middleName: string;
+  lastName: string;
+  /** Protagonist, Antagonist, Sidekick… free text, but also mirrored as a tag. */
+  role: string;
+  age: string;
+  gender: string;
+  occupation: string;
+  /** Eye colour, hair, height… free text — deliberately one field, not a
+   * rigid checklist, since which features matter varies wildly by story. */
+  physicalFeatures: string;
+  /** Comma- or line-separated traits, each mirrored as a tag. */
+  personalityTraits: string;
+}
+
+export function defaultCharacterProfile(): CharacterProfile {
+  return {
+    title: '',
+    firstName: '',
+    middleName: '',
+    lastName: '',
+    role: '',
+    age: '',
+    gender: '',
+    occupation: '',
+    physicalFeatures: '',
+    personalityTraits: '',
+  };
+}
+
 export interface CharacterDoc extends BaseDoc {
   kind: 'character';
+  profile: CharacterProfile;
 }
 
 export interface LocationDoc extends BaseDoc {

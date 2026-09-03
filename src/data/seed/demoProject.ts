@@ -1,5 +1,6 @@
 import type {
   CharacterDoc,
+  CharacterProfile,
   LocationDoc,
   ManuscriptChapter,
   MapMarker,
@@ -17,7 +18,7 @@ import type {
   TimelineEvent,
   TimelineSection,
 } from '@/types/domain';
-import { SCHEMA_VERSION } from '@/types/domain';
+import { SCHEMA_VERSION, defaultCharacterProfile } from '@/types/domain';
 import { newId } from '@/utils/id';
 import { countWords, docToPlainText, makeExcerpt } from '@/utils/text';
 import { materializeFolders, templateById } from '@/data/templates';
@@ -39,6 +40,8 @@ interface DocSpec {
   folder: string;
   tags?: string[];
   fields?: Array<[label: string, value: string]>;
+  /** Character-only: the structured profile fields. */
+  profile?: Partial<CharacterProfile>;
   /** Paragraphs; `@key` inside a paragraph becomes an entity reference node. */
   body: string[];
 }
@@ -57,6 +60,16 @@ const CHARACTERS: DocSpec[] = [
       ['Importance', 'Primary'],
       ['Affiliation', 'The Order of the Tide'],
     ],
+    profile: {
+      firstName: 'Elysia',
+      lastName: 'Ambrose',
+      role: 'Protagonist',
+      age: '29',
+      gender: 'Woman',
+      occupation: 'Lanternwright',
+      physicalFeatures: 'Weather-cracked hands, a Northlands accent she never lost, a permanent squint from watching lanterns at night.',
+      personalityTraits: 'Stubborn, dutiful, quietly resentful',
+    },
     body: [
       'Elysia keeps the harbour lanterns burning, which is a smaller job than it sounds and a larger one than anybody in @glasscity admits. Twice a night she walks the seawall with a hooked pole and a tin of blue oil, and twice a night she counts the lights of ships that have no business being where they are.',
       'She was born in @northlands, in a valley where the word for "ocean" was borrowed from a neighbouring language. She has never entirely lost the accent, and she has never entirely stopped resenting the people who notice it.',
@@ -76,6 +89,16 @@ const CHARACTERS: DocSpec[] = [
       ['Importance', 'Primary'],
       ['Affiliation', 'The Order of the Tide'],
     ],
+    profile: {
+      firstName: 'Kael',
+      lastName: 'Vantress',
+      role: 'Antagonist',
+      age: '41',
+      gender: 'Man',
+      occupation: 'Writ-bearer',
+      physicalFeatures: 'Tall, grey at the temples, a writ-case he never sets down.',
+      personalityTraits: 'Principled, weary, self-doubting',
+    },
     body: [
       'Kael is not cruel, which is the difficulty. He believes the Order is the only institution standing between @glasscity and a sea that has already taken three coastlines this century, and he is very nearly right.',
       'He carries writs the way other men carry knives — reluctantly, visibly, and with the understanding that drawing one ends the conversation. The writ he brings for @elysia is the first he has ever hesitated over.',
@@ -95,6 +118,16 @@ const CHARACTERS: DocSpec[] = [
       ['Importance', 'Primary'],
       ['Affiliation', 'The Tidal Archive'],
     ],
+    profile: {
+      firstName: 'Mira',
+      lastName: 'Solane',
+      role: 'Ally',
+      age: '38',
+      gender: 'Woman',
+      occupation: 'Archivist',
+      physicalFeatures: 'Ink-stained fingers, keeps her hair short so it never drags in the flooded stacks.',
+      personalityTraits: 'Meticulous, dry-humoured, fiercely loyal',
+    },
     body: [
       'Mira catalogues a library that floods twice a day. Everything below the fourth landing of @drownedstair is copied, re-copied, and copied again, and she has come to think of the archive less as a building than as a rumour the city keeps repeating to itself.',
       'She has known @elysia since both of them were too young to be trusted with open flame. She is the only person who calls her Ambrose.',
@@ -111,6 +144,16 @@ const CHARACTERS: DocSpec[] = [
       ['Role', 'Ferrier'],
       ['Importance', 'Secondary'],
     ],
+    profile: {
+      firstName: 'Elian',
+      lastName: 'Rouke',
+      role: 'Supporting',
+      age: '23',
+      gender: 'Man',
+      occupation: 'Ferrier',
+      physicalFeatures: 'Wiry, sun-browned, a scar across one knuckle from a boat hook.',
+      personalityTraits: 'Discreet, superstitious',
+    },
     body: [
       'Elian ferries the sunken quarter at low water and pretends not to notice what his passengers carry. He was last seen poling north out of @lanternquay on the night of the assassination, and the boat came back without him.',
     ],
@@ -126,6 +169,17 @@ const CHARACTERS: DocSpec[] = [
       ['Importance', 'Secondary'],
       ['Affiliation', 'Harbour Watch'],
     ],
+    // Title + surname, no first name on record — exactly the shape that
+    // used to read as a stranger every time the prose said "the Warden"
+    // instead of the full "Warden Oduya".
+    profile: {
+      title: 'Warden',
+      lastName: 'Oduya',
+      role: 'Supporting',
+      occupation: 'Harbour Warden',
+      physicalFeatures: 'Weathered, broad-shouldered, a Harbour Watch coat gone thin at the elbows.',
+      personalityTraits: 'Superstitious, dependable',
+    },
     body: [
       'Thirty years on the seawall have left the Warden with an unshakeable conviction that the tide is a person, and a grudging respect for anyone who works nights.',
     ],
@@ -568,6 +622,7 @@ export function buildDemoProject(): ProjectBundle {
   const characters: CharacterDoc[] = CHARACTERS.map((spec, i) => ({
     ...buildDoc(spec, i),
     kind: 'character' as const,
+    profile: { ...defaultCharacterProfile(), ...spec.profile },
   }));
 
   const locations: LocationDoc[] = LOCATIONS.map((spec, i) => ({

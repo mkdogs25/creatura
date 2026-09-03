@@ -9,6 +9,7 @@ import { EntityReference } from '@/editor/nodes/EntityReference';
 import { MentionSuggestion, WikiLinkSuggestion } from '@/editor/extensions/mentionSuggestion';
 import { AutoCapitalize } from '@/editor/extensions/autoCapitalize';
 import { FindReplace } from '@/editor/extensions/findReplace';
+import { PasteCleanup } from '@/editor/extensions/pasteCleanup';
 import type { WritingSettings } from '@/types/domain';
 
 /**
@@ -59,6 +60,7 @@ export function buildExtensions(writing: WritingSettings): Extensions {
     MentionSuggestion,
     WikiLinkSuggestion,
     FindReplace,
+    PasteCleanup,
     ...(writing.autoCapitalize ? [AutoCapitalize] : []),
   ];
 }

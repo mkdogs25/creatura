@@ -114,7 +114,7 @@ export function TopNav() {
       )}
 
       <div className="flex shrink-0 items-center gap-2 pr-1">
-        <span className="text-[var(--color-accent)]">
+        <span className="inline-flex text-[var(--color-accent)] transition-transform duration-300 ease-[var(--ease-out-soft)] hover:-rotate-6 hover:scale-110">
           <QuillMark size={19} />
         </span>
         <span className="type-display hidden text-[1.18rem] leading-none tracking-[0.09em] text-[var(--color-ink)] sm:inline">

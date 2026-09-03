@@ -8,6 +8,7 @@ import { allDocs, docById } from '@/store/selectors';
 import { FolderTree } from '@/components/world-library/FolderTree';
 import { DocumentHeader } from '@/components/world-library/DocumentHeader';
 import { DocumentTabs } from '@/components/world-library/DocumentTabs';
+import { ProfileFields } from '@/components/metadata/ProfileFields';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { ManuscriptEditor } from '@/components/editor/ManuscriptEditor';
 import { EditorToolbar } from '@/components/editor/EditorToolbar';
@@ -150,6 +151,7 @@ export function WorldLibraryView() {
         {!focusMode && <DocumentTabs />}
 
         {doc && !focusMode && <DocumentHeader doc={doc} />}
+        {doc && doc.kind === 'character' && !focusMode && <ProfileFields doc={doc} />}
 
         <div className={cn('flex min-h-0 flex-1', showMap ? 'flex-col xl:flex-row' : '')}>
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">

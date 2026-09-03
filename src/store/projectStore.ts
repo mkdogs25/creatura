@@ -1,7 +1,9 @@
 import { create } from 'zustand';
+import { defaultCharacterProfile } from '@/types/domain';
 import type {
   AnyDoc,
   CharacterDoc,
+  CharacterProfile,
   DocKind,
   Folder,
   LocationDoc,
@@ -93,6 +95,9 @@ interface ProjectState {
     tagIds?: string[];
   }) => string;
   updateDoc: (docId: string, patch: Partial<AnyDoc>) => void;
+  /** Patches a character's structured profile — also keeps `name` in sync
+   * with the name fields, and mirrors Role/Personality Traits as tags. */
+  updateCharacterProfile: (docId: string, patch: Partial<CharacterProfile>) => void;
   updateDocContent: (docId: string, content: RichContent) => void;
   restoreSnapshot: (docId: string, content: RichContent) => void;
   deleteDoc: (docId: string) => void;
@@ -180,6 +185,12 @@ function nextOrder(items: Array<{ order: number }>): number {
   return items.reduce((max, item) => Math.max(max, item.order), 0) + 1;
 }
 
+/** Personality traits are entered as one free-text field, comma- or
+ * line-separated, then mirrored into individual tags. */
+function splitTraits(value: string): string[] {
+  return [...new Set(value.split(/[,\n]/).map((t) => t.trim()).filter(Boolean))];
+}
+
 function makeBaseDoc(
   projectId: string,
   kind: DocKind,
@@ -207,7 +218,8 @@ function makeBaseDoc(
     updatedAt: now,
   };
   if (kind === 'location') return { ...base, kind: 'location', mapId: null } as LocationDoc;
-  if (kind === 'character') return { ...base, kind: 'character' } as CharacterDoc;
+  if (kind === 'character')
+    return { ...base, kind: 'character', profile: defaultCharacterProfile() } as CharacterDoc;
   return { ...base, kind: 'note' } as NoteDoc;
 }
 
@@ -519,6 +531,68 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const current = findDoc(bundle, docId);
       if (!current) return;
       const next = { ...current, ...patch, updatedAt: Date.now() } as AnyDoc;
+      set((state) => patchBundle(state, (b) => replaceDoc(b, next)));
+      write(() => putDoc(next));
+    },
+
+    updateCharacterProfile: (docId, patch) => {
+      const bundle = get().bundle;
+      if (!bundle) return;
+      const current = bundle.characters.find((c) => c.id === docId);
+      if (!current) return;
+
+      const nextProfile: CharacterProfile = { ...current.profile, ...patch };
+      let tagIds = current.tagIds;
+
+      const detachTagNamed = (name: string) => {
+        const clean = name.trim().toLowerCase();
+        if (!clean) return;
+        const tag = get().bundle?.tags.find((t) => t.name.toLowerCase() === clean);
+        if (tag) tagIds = tagIds.filter((id) => id !== tag.id);
+      };
+      const attachTagNamed = (name: string) => {
+        const clean = name.trim();
+        if (!clean) return;
+        const id = get().createTag(clean);
+        if (id && !tagIds.includes(id)) tagIds = [...tagIds, id];
+      };
+
+      // Role and Personality Traits double as tags, so filling in the
+      // profile is also a quick way to tag a character without leaving the
+      // note — swapping the old value's tag out for the new one's in.
+      if (patch.role !== undefined && patch.role !== current.profile.role) {
+        detachTagNamed(current.profile.role);
+        attachTagNamed(patch.role);
+      }
+      if (patch.personalityTraits !== undefined) {
+        const oldTraits = splitTraits(current.profile.personalityTraits);
+        const newTraits = splitTraits(patch.personalityTraits);
+        const newLower = new Set(newTraits.map((t) => t.toLowerCase()));
+        for (const trait of oldTraits) {
+          if (!newLower.has(trait.toLowerCase())) detachTagNamed(trait);
+        }
+        for (const trait of newTraits) attachTagNamed(trait);
+      }
+
+      // The structured name fields are the source of truth for the
+      // character's canonical name once they're in use — everything keyed
+      // off `name` (tabs, @mentions, search, the sidebar) should read what
+      // the profile says rather than drift from it.
+      const nameFieldsTouched = (['firstName', 'middleName', 'lastName'] as const).some(
+        (key) => key in patch,
+      );
+      const composedName = [nextProfile.firstName, nextProfile.middleName, nextProfile.lastName]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+
+      const next: CharacterDoc = {
+        ...current,
+        profile: nextProfile,
+        tagIds,
+        name: nameFieldsTouched && composedName ? composedName : current.name,
+        updatedAt: Date.now(),
+      };
       set((state) => patchBundle(state, (b) => replaceDoc(b, next)));
       write(() => putDoc(next));
     },

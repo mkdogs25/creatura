@@ -1,5 +1,7 @@
 import { docToPlainText } from '@/utils/text';
-import type { AnyDoc, RichContent } from '@/types/domain';
+import type { AnyDoc, CharacterProfile, RichContent } from '@/types/domain';
+
+type NameSource = Pick<AnyDoc, 'kind' | 'name'> & { profile?: CharacterProfile };
 
 /**
  * Expands a project's character/location names into every first/last-word
@@ -8,8 +10,13 @@ import type { AnyDoc, RichContent } from '@/types/domain';
  * because the prose happens to use it alone. Notes are left whole (a note's
  * title fragmenting into "known names" would just as often hide a real,
  * still-uncreated character who happens to share a word with it).
+ *
+ * A character's structured profile — when filled in — expands this further
+ * into every title/first/last combination ("Professor Oshira", "Professor
+ * Bristol Oshira", "Bristol"…): without it, those all read as different
+ * people, since a bare name split can't know "Professor" isn't part of one.
  */
-export function expandKnownNames(docs: Pick<AnyDoc, 'kind' | 'name'>[]): string[] {
+export function expandKnownNames(docs: NameSource[]): string[] {
   const names = new Set<string>();
   for (const doc of docs) {
     names.add(doc.name);
@@ -19,6 +26,16 @@ export function expandKnownNames(docs: Pick<AnyDoc, 'kind' | 'name'>[]): string[
       names.add(words[0]);
       names.add(words[words.length - 1]);
     }
+
+    if (doc.kind !== 'character' || !doc.profile) continue;
+    const { title, firstName, middleName, lastName } = doc.profile;
+    if (firstName) names.add(firstName);
+    if (lastName) names.add(lastName);
+    if (firstName && lastName) names.add(`${firstName} ${lastName}`);
+    if (firstName && middleName && lastName) names.add(`${firstName} ${middleName} ${lastName}`);
+    if (title && lastName) names.add(`${title} ${lastName}`);
+    if (title && firstName) names.add(`${title} ${firstName}`);
+    if (title && firstName && lastName) names.add(`${title} ${firstName} ${lastName}`);
   }
   return [...names];
 }
