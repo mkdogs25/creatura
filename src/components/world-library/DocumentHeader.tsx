@@ -5,6 +5,7 @@ import {
   MoreHorizontal,
   PanelLeft,
   PanelRight,
+  Printer,
   Shapes,
   Tag as TagIcon,
   Trash2,
@@ -99,6 +100,14 @@ export function DocumentHeader({ doc }: { doc: AnyDoc }) {
         downloadTextFile(`${doc.name}.md`, markdown, 'text/markdown');
       },
     },
+    {
+      id: 'export-pdf',
+      label: 'Export as PDF',
+      icon: Printer,
+      onSelect: () => {
+        window.open(`${window.location.pathname}?print=doc&id=${doc.id}`, '_blank', 'noopener');
+      },
+    },
     ...(doc.kind === 'note'
       ? [
           {
@@ -150,6 +159,18 @@ export function DocumentHeader({ doc }: { doc: AnyDoc }) {
           <Breadcrumbs />
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
+          {doc.kind === 'note' && (
+            <Tooltip label="Convert to category">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Convert to category"
+                onClick={() => setConverting(true)}
+              >
+                <Shapes size={14} />
+              </Button>
+            </Tooltip>
+          )}
           {doc.kind === 'location' && (
             <>
               <Tooltip label={mapOpen ? 'Hide map' : 'Show map'}>

@@ -19,6 +19,7 @@ import { ManuscriptView } from '@/components/manuscript/ManuscriptView';
 import { MatrixView } from '@/components/matrix/MatrixView';
 import { MapStandaloneView } from '@/components/map/MapStandaloneView';
 import { PrintManuscriptView } from '@/components/print/PrintManuscriptView';
+import { PrintDocView } from '@/components/print/PrintDocView';
 import { SettingsView } from '@/components/settings/SettingsView';
 import { CommandPalette } from '@/components/command-palette/CommandPalette';
 import { MentionMenu } from '@/components/editor/MentionMenu';
@@ -52,9 +53,11 @@ export function App() {
   const [standaloneMapDocId] = useState(() =>
     new URLSearchParams(window.location.search).get('map'),
   );
-  // Same idea for "Export to PDF": ?print=manuscript opens a print-ready view
-  // in its own tab rather than disturbing whatever's currently open.
+  // Same idea for "Export to PDF": ?print=manuscript (or ?print=doc&id=…)
+  // opens a print-ready view in its own tab rather than disturbing whatever's
+  // currently open.
   const [printMode] = useState(() => new URLSearchParams(window.location.search).get('print'));
+  const [printDocId] = useState(() => new URLSearchParams(window.location.search).get('id'));
 
   useThemeEffect();
   useKeyboardShortcuts();
@@ -136,6 +139,13 @@ export function App() {
     return (
       <ErrorBoundary label="This print view stopped responding">
         <PrintManuscriptView />
+      </ErrorBoundary>
+    );
+  }
+  if (printMode === 'doc' && printDocId) {
+    return (
+      <ErrorBoundary label="This print view stopped responding">
+        <PrintDocView docId={printDocId} />
       </ErrorBoundary>
     );
   }

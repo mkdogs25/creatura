@@ -5,9 +5,10 @@ function escapeRegExp(value: string): string {
 }
 
 /** Matches a line that opens with `label`, a separator, then a value —
- * "Role: Protagonist", "Role - Protagonist", "role — Protagonist". */
+ * "Role: Protagonist", "Role - Protagonist", "role — Protagonist",
+ * "Role | Protagonist". */
 function labelLinePattern(label: string): RegExp {
-  return new RegExp(`^[ \\t]*${escapeRegExp(label)}[ \\t]*[:\\-–—][ \\t]*(.+)$`, 'im');
+  return new RegExp(`^[ \\t]*${escapeRegExp(label)}[ \\t]*[:|\\-–—][ \\t]*(.+)$`, 'im');
 }
 
 /** "firstName" -> "first name" — lets a field also be recognised by a
@@ -21,11 +22,11 @@ const NOTES_LABEL = /^notes?$/i;
 
 /**
  * Best-effort extraction of a category's fields out of a block of plain
- * prose — the "Label: value" lines a lot of people already write by hand
- * when jotting down a character or place before this app had structured
- * fields for them. Works for any category's field list, built-in or
- * user-defined, since it only ever looks at `fields`, never a hardcoded
- * shape.
+ * prose — the "Label: value" (or "Label - value", "Label | value") lines a
+ * lot of people already write by hand when jotting down a character or
+ * place before this app had structured fields for them. Works for any
+ * category's field list, built-in or user-defined, since it only ever
+ * looks at `fields`, never a hardcoded shape.
  *
  * Each matched line is removed from the pool once claimed, so the same
  * sentence can't fill two fields. Whatever prose is left over after every

@@ -4,7 +4,9 @@ import {
   Link2,
   Link2Off,
   MapPin,
+  Maximize,
   Maximize2,
+  Minimize,
   Minus,
   MousePointer2,
   Paintbrush,
@@ -23,7 +25,13 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { pickImageAsDataUrl } from '@/utils/download';
 import { clamp } from '@/utils/time';
 import { cn } from '@/utils/cn';
-import { TERRAIN_TYPES, terrainColor } from '@/data/terrainTypes';
+import { TERRAIN_TYPES } from '@/data/terrainTypes';
+import {
+  MAP_VISUAL_MODES,
+  collisionHueRotations,
+  terrainColorForMode,
+  type MapVisualMode,
+} from '@/data/mapVisualModes';
 import { MAP_ICONS, mapIconById, type MapIconCategory } from '@/data/mapIcons';
 import { MapIconGlyph } from '@/components/map/MapIconGlyph';
 import type { MapMarker, MapStamp, MapTerrainStroke, TerrainKind } from '@/types/domain';
@@ -81,8 +89,11 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
   const [activeIcon, setActiveIcon] = useState('tree');
   const [activeStampColor, setActiveStampColor] = useState(STAMP_COLORS[0]);
   const [livePoints, setLivePoints] = useState<Array<{ x: number; y: number }> | null>(null);
+  const [visualMode, setVisualMode] = useState<MapVisualMode>('natural');
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const panState = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null);
   const dragState = useRef<{ pointerId: number; kind: 'marker' | 'stamp'; id: string } | null>(null);
   const terrainDragState = useRef<{
@@ -95,6 +106,14 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
   const paintingRef = useRef<{ pointerId: number; points: Array<{ x: number; y: number }> } | null>(null);
   const undoStack = useRef<Array<{ kind: 'terrain' | 'stamp'; id: string }>>([]);
   const [, forceUndoRerender] = useState(0);
+
+  // Multi-touch: every currently-down pointer, by id, in client coordinates.
+  // Pointer Events already unify mouse, pen and touch input (and `touch-none`
+  // below stops the browser's own pinch/scroll from fighting this), so a
+  // second finger touching down is enough to detect a pinch — no separate
+  // touchstart/touchmove handlers are needed alongside the pointer ones.
+  const activePointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchState = useRef<{ distance: number } | null>(null);
 
   const markers = useMemo(
     () => (map ? (bundle?.markers ?? []).filter((marker) => marker.mapId === map.id) : []),
@@ -114,6 +133,27 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
         : [],
     [bundle?.stamps, map],
   );
+
+  // "Hue Shift on Collision": recomputed only when the mode is active and the
+  // strokes actually change — every other mode reads a fixed palette instead.
+  const hueRotations = useMemo(
+    () => (visualMode === 'hueShift' ? collisionHueRotations(terrainStrokes) : new Map<string, number>()),
+    [visualMode, terrainStrokes],
+  );
+
+  useEffect(() => {
+    const onFullscreenChange = () => setIsFullscreen(document.fullscreenElement === containerRef.current);
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+    } else {
+      void containerRef.current?.requestFullscreen();
+    }
+  }, []);
 
   useEffect(() => {
     if (requestedMapId) setSelectedMapId(requestedMapId);
@@ -226,7 +266,13 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
     tool === 'terrain' || tool === 'stamp' || tool === 'marker' ? 'cursor-crosshair' : 'cursor-grab';
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div
+      ref={containerRef}
+      className={cn(
+        'flex h-full min-h-0 flex-col',
+        isFullscreen && 'bg-[var(--color-canvas)]',
+      )}
+    >
       <header className="flex flex-wrap items-center gap-2 border-b border-[var(--color-line)] px-3 py-2">
         <Select
           value={map.id}
@@ -240,6 +286,21 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
             </option>
           ))}
         </Select>
+
+        <Tooltip label="Visual mode">
+          <Select
+            value={visualMode}
+            aria-label="Visual mode"
+            onChange={(event) => setVisualMode(event.target.value as MapVisualMode)}
+            className="w-40 text-[0.78rem]"
+          >
+            {MAP_VISUAL_MODES.map((mode) => (
+              <option key={mode.id} value={mode.id}>
+                {mode.label}
+              </option>
+            ))}
+          </Select>
+        </Tooltip>
 
         <div className="flex items-center gap-0.5 rounded-[var(--radius-control)] border border-[var(--color-line)] p-0.5">
           <Tooltip label="Select & pan">
@@ -324,6 +385,19 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
             <Plus size={13} />
             New map
           </Button>
+          {typeof document.exitFullscreen === 'function' && (
+            <Tooltip label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                aria-pressed={isFullscreen}
+                onClick={toggleFullscreen}
+              >
+                {isFullscreen ? <Minimize size={13} /> : <Maximize size={13} />}
+              </Button>
+            </Tooltip>
+          )}
         </div>
       </header>
 
@@ -343,7 +417,7 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
                       ? 'scale-110 border-[var(--color-ink)]'
                       : 'border-transparent hover:scale-105',
                   )}
-                  style={{ backgroundColor: terrain.color }}
+                  style={{ backgroundColor: terrainColorForMode(terrain.id, visualMode) }}
                 />
               </Tooltip>
             ))}
@@ -440,7 +514,7 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
         <svg
           ref={svgRef}
           role="application"
-          aria-label={`${map.name} — pan with drag, zoom with the scroll wheel`}
+          aria-label={`${map.name} — pan with drag, zoom with the scroll wheel or a two-finger pinch`}
           className={`h-full w-full touch-none ${cursor}`}
           onWheel={(event) => {
             const rect = svgRef.current?.getBoundingClientRect();
@@ -451,6 +525,23 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
             );
           }}
           onPointerDown={(event) => {
+            activePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+            if (activePointers.current.size === 2) {
+              // A second finger just landed — this becomes a pinch, not
+              // whatever the active tool would otherwise do with one pointer.
+              panState.current = null;
+              dragState.current = null;
+              terrainDragState.current = null;
+              if (paintingRef.current) {
+                paintingRef.current = null;
+                setLivePoints(null);
+              }
+              const [a, b] = [...activePointers.current.values()];
+              pinchState.current = { distance: Math.hypot(a.x - b.x, a.y - b.y) };
+              return;
+            }
+            if (activePointers.current.size > 2) return;
+
             if (tool === 'marker') {
               const point = toMapSpace(event.clientX, event.clientY);
               const id = createMarker({ mapId: map.id, x: point.x, y: point.y, label: 'New marker' });
@@ -490,6 +581,25 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
             event.currentTarget.setPointerCapture(event.pointerId);
           }}
           onPointerMove={(event) => {
+            if (activePointers.current.has(event.pointerId)) {
+              activePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+            }
+            if (activePointers.current.size === 2 && pinchState.current) {
+              const [a, b] = [...activePointers.current.values()];
+              const distance = Math.hypot(a.x - b.x, a.y - b.y);
+              if (pinchState.current.distance > 0) {
+                const rect = svgRef.current?.getBoundingClientRect();
+                const midX = (a.x + b.x) / 2;
+                const midY = (a.y + b.y) / 2;
+                zoomBy(
+                  distance / pinchState.current.distance,
+                  rect ? midX - rect.left : undefined,
+                  rect ? midY - rect.top : undefined,
+                );
+              }
+              pinchState.current.distance = distance;
+              return;
+            }
             const painting = paintingRef.current;
             if (painting && painting.pointerId === event.pointerId) {
               const point = toMapSpace(event.clientX, event.clientY);
@@ -528,6 +638,8 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
             }));
           }}
           onPointerUp={(event) => {
+            activePointers.current.delete(event.pointerId);
+            if (activePointers.current.size < 2) pinchState.current = null;
             const painting = paintingRef.current;
             if (painting && painting.pointerId === event.pointerId) {
               paintingRef.current = null;
@@ -549,7 +661,9 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
               event.currentTarget.releasePointerCapture(event.pointerId);
             }
           }}
-          onPointerCancel={() => {
+          onPointerCancel={(event) => {
+            activePointers.current.delete(event.pointerId);
+            pinchState.current = null;
             panState.current = null;
             dragState.current = null;
             terrainDragState.current = null;
@@ -601,6 +715,8 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
               <TerrainStrokeGlyph
                 key={stroke.id}
                 stroke={stroke}
+                color={terrainColorForMode(stroke.terrain, visualMode)}
+                hueRotation={hueRotations.get(stroke.id)}
                 active={selection?.kind === 'terrain' && selection.id === stroke.id}
                 interactive={tool === 'pan'}
                 onPointerDown={(event) => {
@@ -625,7 +741,7 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
               <path
                 d={pathFromPoints(livePoints.length > 1 ? livePoints : [livePoints[0], livePoints[0]])}
                 fill="none"
-                stroke={terrainColor(activeTerrain)}
+                stroke={terrainColorForMode(activeTerrain, visualMode)}
                 strokeOpacity={0.55}
                 strokeWidth={brushSize}
                 strokeLinecap="round"
@@ -693,6 +809,7 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
         {activeTerrainStroke && (
           <TerrainInspector
             stroke={activeTerrainStroke}
+            visualMode={visualMode}
             onClose={() => setSelection(null)}
             onChangeTerrain={(terrain) => updateTerrainStroke(activeTerrainStroke.id, { terrain })}
             onChangeBrushSize={(brushSizeNext) =>
@@ -729,17 +846,22 @@ function pathFromPoints(points: Array<{ x: number; y: number }>): string {
 
 function TerrainStrokeGlyph({
   stroke,
+  color,
+  hueRotation,
   active,
   interactive,
   onPointerDown,
 }: {
   stroke: MapTerrainStroke;
+  /** The base paint color for this stroke's terrain under the active visual mode. */
+  color: string;
+  /** Degrees of `hue-rotate` to apply — only set under "Hue Shift on Collision". */
+  hueRotation?: number;
   active: boolean;
   interactive: boolean;
   onPointerDown: (event: React.PointerEvent<SVGPathElement>) => void;
 }) {
   const d = pathFromPoints(stroke.points);
-  const color = terrainColor(stroke.terrain);
   return (
     <>
       <path
@@ -751,6 +873,7 @@ function TerrainStrokeGlyph({
         strokeLinecap="round"
         strokeLinejoin="round"
         pointerEvents="none"
+        style={hueRotation ? { filter: `hue-rotate(${hueRotation}deg)` } : undefined}
       />
       {active && (
         <path
@@ -946,12 +1069,14 @@ function MarkerInspector({
 
 function TerrainInspector({
   stroke,
+  visualMode,
   onClose,
   onChangeTerrain,
   onChangeBrushSize,
   onDelete,
 }: {
   stroke: MapTerrainStroke;
+  visualMode: MapVisualMode;
   onClose: () => void;
   onChangeTerrain: (terrain: TerrainKind) => void;
   onChangeBrushSize: (size: number) => void;
@@ -985,7 +1110,7 @@ function TerrainInspector({
                   ? 'scale-110 border-[var(--color-ink)]'
                   : 'border-transparent hover:scale-105',
               )}
-              style={{ backgroundColor: terrain.color }}
+              style={{ backgroundColor: terrainColorForMode(terrain.id, visualMode) }}
             />
           </Tooltip>
         ))}
