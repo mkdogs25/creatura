@@ -5,6 +5,7 @@ import {
   MoreHorizontal,
   PanelLeft,
   PanelRight,
+  Shapes,
   Tag as TagIcon,
   Trash2,
   Copy,
@@ -21,6 +22,7 @@ import { Tooltip } from '@/components/ui/Tooltip';
 import { MenuHost, useMenu, type MenuEntry } from '@/components/ui/Menu';
 import { PopoverHost } from '@/components/ui/Popover';
 import { TagEditor } from '@/components/metadata/TagEditor';
+import { ConvertToCategoryDialog } from '@/components/world-library/ConvertToCategoryDialog';
 import { docById } from '@/store/selectors';
 import { docToMarkdown } from '@/utils/markdownExport';
 import { downloadTextFile } from '@/utils/download';
@@ -42,6 +44,7 @@ export function DocumentHeader({ doc }: { doc: AnyDoc }) {
   const confirmDestructive = useSettingsStore((s) => s.settings.interface.confirmDestructive);
   const menu = useMenu();
   const tagPopover = useMenu();
+  const [converting, setConverting] = useState(false);
 
   const [title, setTitle] = useState(doc.name);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -96,6 +99,16 @@ export function DocumentHeader({ doc }: { doc: AnyDoc }) {
         downloadTextFile(`${doc.name}.md`, markdown, 'text/markdown');
       },
     },
+    ...(doc.kind === 'note'
+      ? [
+          {
+            id: 'convert',
+            label: 'Convert to category…',
+            icon: Shapes,
+            onSelect: () => setConverting(true),
+          } as MenuEntry,
+        ]
+      : []),
     { id: 's', separator: true },
     {
       id: 'delete',
@@ -227,6 +240,12 @@ export function DocumentHeader({ doc }: { doc: AnyDoc }) {
       <PopoverHost anchor={tagPopover.anchor} onClose={tagPopover.close} align="end" title="Tags">
         <TagEditor tagIds={doc.tagIds} onChange={(tagIds) => updateDoc(doc.id, { tagIds })} />
       </PopoverHost>
+      {doc.kind === 'note' && (
+        <ConvertToCategoryDialog
+          doc={converting ? doc : null}
+          onClose={() => setConverting(false)}
+        />
+      )}
     </header>
   );
 }

@@ -53,8 +53,10 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useEditorStore } from '@/store/editorStore';
 import { kindOfId, newId } from '@/utils/id';
 import { colorForKey } from '@/utils/color';
-import { countWords, docToPlainText, emptyDoc, makeExcerpt } from '@/utils/text';
+import { countWords, docToLines, docToPlainText, emptyDoc, makeExcerpt } from '@/utils/text';
 import { buildProjectFromTemplate } from '@/data/templates';
+import { extractProfileFromText } from '@/features/categories/extractProfile';
+import { remapEntityReference } from '@/features/mentions/entitySuggestions';
 
 const DOC_TABLE: Record<
   DocKind,
@@ -112,6 +114,17 @@ interface ProjectState {
    * @mentions, search, the sidebar) stays in sync.
    */
   updateDocProfile: (docId: string, patch: Profile) => void;
+  /**
+   * Turns an existing note into a document in `categoryId` — built-in or
+   * custom. A note has no fixed field shape to move into a category's
+   * fixed-table storage, so this creates a fresh, kind-prefixed document
+   * (same name, folder, tags) and retires the note, remapping every
+   * `@mention`/`[[wiki-link]]` and relationship that pointed at it onto the
+   * new id rather than leaving them dangling. "Label: value" lines in the
+   * note's prose are extracted into the category's matching fields; returns
+   * the new document's id, or null if the note or category can't be found.
+   */
+  convertDocToCategory: (docId: string, categoryId: string) => string | null;
   updateDocContent: (docId: string, content: RichContent) => void;
   restoreSnapshot: (docId: string, content: RichContent) => void;
   deleteDoc: (docId: string) => void;
@@ -589,6 +602,76 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       write(() => putDoc(doc));
       writeProjectRow(get().bundle);
       return doc.id;
+    },
+
+    convertDocToCategory: (docId, categoryId) => {
+      const bundle = get().bundle;
+      if (!bundle) return null;
+      const current = findDoc(bundle, docId);
+      if (!current || current.kind !== 'note') return null;
+      const category = bundle.categories.find((c) => c.id === categoryId);
+      if (!category) return null;
+
+      const targetKind = category.builtinKind ?? 'custom';
+      const list = bundle[DOC_TABLE[targetKind]] as AnyDoc[];
+      const next = makeBaseDoc(
+        bundle.project.id,
+        targetKind,
+        current.name,
+        current.folderId,
+        nextOrder(list),
+        current.content,
+        current.tagIds,
+        categoryId,
+      );
+      const oldId = current.id;
+      const newDocId = next.id;
+
+      set((state) =>
+        patchBundle(state, (b) => ({
+          ...b,
+          notes: b.notes
+            .filter((note) => note.id !== oldId)
+            .map((note) => ({ ...note, content: remapEntityReference(note.content, oldId, newDocId) })),
+          chapters: b.chapters.map((chapter) => ({
+            ...chapter,
+            content: remapEntityReference(chapter.content, oldId, newDocId),
+          })),
+          relationships: b.relationships.map((rel) =>
+            rel.fromId === oldId || rel.toId === oldId
+              ? {
+                  ...rel,
+                  fromId: rel.fromId === oldId ? newDocId : rel.fromId,
+                  toId: rel.toId === oldId ? newDocId : rel.toId,
+                }
+              : rel,
+          ),
+          [DOC_TABLE[targetKind]]: [...(b[DOC_TABLE[targetKind]] as AnyDoc[]), next],
+          project: touchProject(b),
+        }) as ProjectBundle),
+      );
+
+      write(async () => {
+        const after = get().bundle;
+        await deleteDocRow(oldId);
+        await deleteSnapshotsFor(oldId);
+        await putDoc(next);
+        if (after) {
+          await Promise.all([
+            putRecords('notes', after.notes),
+            putRecords('chapters', after.chapters),
+            putRecords('relationships', after.relationships),
+          ]);
+        }
+      });
+      writeProjectRow(get().bundle);
+
+      // Reuse the profile-update path so tag mirroring and character name
+      // composition happen exactly as they would for a manual edit.
+      const extracted = extractProfileFromText(docToLines(current.content), category.fields);
+      if (Object.keys(extracted).length > 0) get().updateDocProfile(newDocId, extracted);
+
+      return newDocId;
     },
 
     updateDoc: (docId, patch) => {

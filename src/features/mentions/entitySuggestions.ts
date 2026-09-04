@@ -170,6 +170,49 @@ function escapeRegExp(value: string): string {
 }
 
 /**
+ * Re-points every `entityReference` node in `content` that targets `oldId`
+ * at `newId` instead — used when a document's id changes out from under it
+ * (converting a note into a category swaps in a fresh, kind-prefixed id, the
+ * same way `deleteDoc` severs references on delete, except here the target
+ * still exists so the link is repointed rather than left dangling).
+ *
+ * Returns the original object unchanged (same reference) when nothing
+ * matched, so callers can cheaply tell whether a document actually needs
+ * re-saving.
+ */
+export function remapEntityReference(
+  content: RichContent,
+  oldId: string,
+  newId: string,
+): RichContent {
+  const walk = (node: unknown): unknown => {
+    if (!node || typeof node !== 'object') return node;
+    const n = node as { type?: string; attrs?: unknown; content?: unknown[]; [key: string]: unknown };
+
+    if (n.type === 'entityReference' && n.attrs && typeof n.attrs === 'object') {
+      const attrs = n.attrs as Record<string, unknown>;
+      if (attrs.entityId === oldId) {
+        return { ...n, attrs: { ...attrs, entityId: newId } };
+      }
+    }
+
+    if (Array.isArray(n.content)) {
+      let changed = false;
+      const nextContent = n.content.map((child) => {
+        const result = walk(child);
+        if (result !== child) changed = true;
+        return result;
+      });
+      if (changed) return { ...n, content: nextContent };
+    }
+
+    return n;
+  };
+
+  return walk(content) as RichContent;
+}
+
+/**
  * Rewrites every whole-word occurrence of `name` in prose text nodes into an
  * `entityReference` pointing at `entityId` — turning "noticed a repeated
  * name" into an actually-linked mention rather than just a created, unlinked

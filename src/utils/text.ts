@@ -17,12 +17,12 @@ export function initialsOf(name: string): string {
   return letters.length > 0 ? `${letters.join('.')}.` : '';
 }
 
-/**
- * Flattens a Tiptap document to plain text. Entity references contribute the
- * label that was current when they were written, which is fine for search
- * snippets — the canonical name is always re-resolved at render time.
- */
-export function docToPlainText(doc: RichContent | null | undefined): string {
+/** Walks a Tiptap document's text and entity-reference nodes, joining each
+ * block-level node (paragraph, heading, list item…) with `blockSeparator`.
+ * Entity references contribute the label that was current when they were
+ * written — fine for search snippets, since the canonical name is always
+ * re-resolved at render time. */
+function flattenDoc(doc: RichContent | null | undefined, blockSeparator: string): string {
   if (!doc) return '';
   const parts: string[] = [];
 
@@ -37,13 +37,30 @@ export function docToPlainText(doc: RichContent | null | undefined): string {
     }
     if (Array.isArray(n.content)) {
       n.content.forEach(walk);
-      // Block-level nodes get a space so words don't run together.
-      if (n.type !== 'text') parts.push(' ');
+      if (n.type !== 'text') parts.push(blockSeparator);
     }
   };
 
   walk(doc);
-  return parts.join('').replace(/\s+/g, ' ').trim();
+  return parts.join('');
+}
+
+/** Flattens a Tiptap document to a single run of plain text — every block
+ * boundary collapses to one space, which is what search snippets and
+ * excerpts want. */
+export function docToPlainText(doc: RichContent | null | undefined): string {
+  return flattenDoc(doc, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/** Like `docToPlainText`, but keeps each block-level node on its own line
+ * instead of collapsing everything into one run — needed wherever
+ * "Label: value" lines have to stay separately matchable, such as
+ * extracting a category's fields out of a note's prose. */
+export function docToLines(doc: RichContent | null | undefined): string {
+  return flattenDoc(doc, '\n')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 export function countWords(text: string): number {

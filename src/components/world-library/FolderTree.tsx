@@ -7,6 +7,7 @@ import {
   FolderPlus,
   PanelLeftClose,
   Pencil,
+  Shapes,
   Trash2,
   CornerUpLeft,
   type LucideIcon,
@@ -30,6 +31,7 @@ import { singularize } from '@/utils/text';
 import { MenuHost, useMenu, type MenuEntry } from '@/components/ui/Menu';
 import { Button } from '@/components/ui/Button';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { ConvertToCategoryDialog } from '@/components/world-library/ConvertToCategoryDialog';
 import { cn } from '@/utils/cn';
 
 /** A document's icon comes from its category — dynamic, since a project can
@@ -436,12 +438,23 @@ function DocRow({ doc, depth, active, setDragging, renaming, setRenaming }: DocR
   const confirm = useUiStore((s) => s.confirm);
   const confirmDestructive = useSettingsStore((s) => s.settings.interface.confirmDestructive);
   const menu = useMenu();
+  const [converting, setConverting] = useState(false);
   const Icon = docIcon(bundle, doc);
 
   const entries: MenuEntry[] = [
     { id: 'h', heading: doc.name },
     { id: 'open', label: 'Open', icon: FileText, onSelect: () => setActiveDoc(doc.id) },
     { id: 'rename', label: 'Rename', icon: Pencil, onSelect: () => setRenaming(doc.id) },
+    ...(doc.kind === 'note'
+      ? [
+          {
+            id: 'convert',
+            label: 'Convert to category…',
+            icon: Shapes,
+            onSelect: () => setConverting(true),
+          } as MenuEntry,
+        ]
+      : []),
     { id: 's', separator: true },
     {
       id: 'delete',
@@ -526,6 +539,12 @@ function DocRow({ doc, depth, active, setDragging, renaming, setRenaming }: DocR
         </button>
       </div>
       <MenuHost anchor={menu.anchor} entries={entries} onClose={menu.close} />
+      {doc.kind === 'note' && (
+        <ConvertToCategoryDialog
+          doc={converting ? doc : null}
+          onClose={() => setConverting(false)}
+        />
+      )}
     </li>
   );
 }
