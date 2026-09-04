@@ -275,12 +275,45 @@ export const projectSchema = z.object({
   lastOpenedAt: timestamp.catch(() => Date.now()),
 });
 
+const hexColor = z.string().catch('#808080');
+
+const customThemeColorsSchema = z.object({
+  canvas: hexColor,
+  surface: hexColor,
+  surfaceRaised: hexColor,
+  surfaceSunken: hexColor,
+  overlay: hexColor,
+  line: hexColor,
+  lineStrong: hexColor,
+  ink: hexColor,
+  inkMuted: hexColor,
+  inkFaint: hexColor,
+  accent: hexColor,
+  accentSoft: hexColor,
+  accentInk: hexColor,
+  danger: hexColor,
+  success: hexColor,
+  grammar: hexColor,
+});
+
+export const customThemeSchema = z.object({
+  id: id,
+  name: z.string().catch('Custom theme'),
+  colors: customThemeColorsSchema,
+  createdAt: timestamp.catch(() => Date.now()),
+  updatedAt: timestamp.catch(() => Date.now()),
+});
+
 export const settingsSchema = z.object({
   id: z.literal('app').catch('app'),
   appearance: z
     .object({
       theme: z.enum(['dark', 'light', 'system']).catch('dark'),
-      visualMode: z.enum(['natural', 'cyberpunk', 'pastel', 'monochrome', 'hueShift']).catch('natural'),
+      visualMode: z
+        .enum(['natural', 'cyberpunk', 'pastel', 'monochrome', 'hueShift', 'custom'])
+        .catch('natural'),
+      customThemes: z.array(customThemeSchema).catch([]),
+      activeCustomThemeId: z.string().nullable().catch(null),
       density: z.enum(['compact', 'comfortable']).catch('comfortable'),
       uiScale: z.number().min(0.85).max(1.3).catch(1),
       animations: z.boolean().catch(true),
@@ -289,6 +322,8 @@ export const settingsSchema = z.object({
     .catch({
       theme: 'dark',
       visualMode: 'natural',
+      customThemes: [],
+      activeCustomThemeId: null,
       density: 'comfortable',
       uiScale: 1,
       animations: true,

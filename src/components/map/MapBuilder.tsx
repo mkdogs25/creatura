@@ -87,9 +87,13 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
   const [livePoints, setLivePoints] = useState<Array<{ x: number; y: number }> | null>(null);
   // Starts from the app-wide visual mode (Settings → Appearance) so a
   // freshly opened map already matches; from there it's a per-session
-  // override, same as the tool/brush state above.
+  // override, same as the tool/brush state above. Custom themes only restyle
+  // app chrome, not terrain, so they have no entry in this dropdown — a
+  // 'custom' app-wide mode falls back to Natural here.
   const appVisualMode = useSettingsStore((s) => s.settings.appearance.visualMode);
-  const [visualMode, setVisualMode] = useState<VisualMode>(appVisualMode);
+  const [visualMode, setVisualMode] = useState<VisualMode>(
+    appVisualMode === 'custom' ? 'natural' : appVisualMode,
+  );
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const svgRef = useRef<SVGSVGElement>(null);

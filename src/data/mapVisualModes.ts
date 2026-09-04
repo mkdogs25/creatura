@@ -68,7 +68,7 @@ const MONOCHROME: Palette = {
   swamp: '#4A4A4A',
 };
 
-const PALETTES: Record<Exclude<VisualMode, 'hueShift'>, Palette> = {
+const PALETTES: Record<Exclude<VisualMode, 'hueShift' | 'custom'>, Palette> = {
   natural: NATURAL,
   cyberpunk: CYBERPUNK,
   pastel: PASTEL,
@@ -77,9 +77,10 @@ const PALETTES: Record<Exclude<VisualMode, 'hueShift'>, Palette> = {
 
 /** A terrain kind's base paint color under a visual mode. `hueShift` paints
  * from the natural palette — its look comes from the per-stroke rotation in
- * `collisionHueRotations`, not a different base palette. */
+ * `collisionHueRotations`, not a different base palette. `custom` themes only
+ * restyle app chrome, not terrain, so they fall back to natural too. */
 export function terrainColorForMode(kind: TerrainKind, mode: VisualMode): string {
-  return mode === 'hueShift' ? NATURAL[kind] : PALETTES[mode][kind];
+  return mode === 'hueShift' || mode === 'custom' ? NATURAL[kind] : PALETTES[mode][kind];
 }
 
 /**

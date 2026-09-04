@@ -7,6 +7,8 @@ export function defaultSettings(): Settings {
     appearance: {
       theme: 'dark',
       visualMode: 'natural',
+      customThemes: [],
+      activeCustomThemeId: null,
       density: 'comfortable',
       uiScale: 1,
       animations: true,

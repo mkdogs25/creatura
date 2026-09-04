@@ -1,10 +1,14 @@
-import { Blend, Circle, Flower2, Monitor, Moon, Sun, Zap } from 'lucide-react';
+import { useState } from 'react';
+import { Blend, Circle, Flower2, Monitor, Moon, Pencil, Plus, Sun, Trash2, Zap } from 'lucide-react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { SettingsSection } from '@/components/settings/panels/SettingsSection';
+import { CustomThemeEditorDialog } from '@/components/settings/panels/CustomThemeEditorDialog';
 import { Switch } from '@/components/ui/Switch';
 import { Slider } from '@/components/ui/Slider';
+import { Button } from '@/components/ui/Button';
+import { CUSTOM_THEME_VARS } from '@/hooks/useThemeEffect';
 import { cn } from '@/utils/cn';
-import type { Density, ThemeMode, VisualMode } from '@/types/domain';
+import type { CustomTheme, CustomThemeColors, Density, ThemeMode, VisualMode } from '@/types/domain';
 
 const THEMES: Array<{ id: ThemeMode; label: string; icon: typeof Moon }> = [
   { id: 'dark', label: 'Dark', icon: Moon },
@@ -30,9 +34,54 @@ const DENSITIES: Array<{ id: Density; label: string; hint: string }> = [
   { id: 'compact', label: 'Compact', hint: 'More on screen at once.' },
 ];
 
+function newThemeId(): string {
+  return `theme_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/** Starts a new custom theme from whatever palette is on screen right now. */
+function seedColorsFromComputedStyle(): CustomThemeColors {
+  const styles = getComputedStyle(document.documentElement);
+  const colors = {} as CustomThemeColors;
+  for (const [key, cssVar] of Object.entries(CUSTOM_THEME_VARS) as Array<
+    [keyof CustomThemeColors, string]
+  >) {
+    colors[key] = styles.getPropertyValue(cssVar).trim() || '#808080';
+  }
+  return colors;
+}
+
 export function AppearanceSettings() {
   const appearance = useSettingsStore((s) => s.settings.appearance);
   const update = useSettingsStore((s) => s.update);
+  const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
+
+  function createTheme() {
+    const theme: CustomTheme = {
+      id: newThemeId(),
+      name: `Custom theme ${appearance.customThemes.length + 1}`,
+      colors: seedColorsFromComputedStyle(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    update('appearance', {
+      customThemes: [...appearance.customThemes, theme],
+      visualMode: 'custom',
+      activeCustomThemeId: theme.id,
+    });
+    setEditingThemeId(theme.id);
+  }
+
+  function activateTheme(id: string) {
+    update('appearance', { visualMode: 'custom', activeCustomThemeId: id });
+  }
+
+  function deleteTheme(id: string) {
+    const wasActive = appearance.visualMode === 'custom' && appearance.activeCustomThemeId === id;
+    update('appearance', {
+      customThemes: appearance.customThemes.filter((t) => t.id !== id),
+      ...(wasActive ? { visualMode: 'natural', activeCustomThemeId: null } : null),
+    });
+  }
 
   return (
     <>
@@ -99,6 +148,73 @@ export function AppearanceSettings() {
           })}
         </div>
       </SettingsSection>
+
+      <SettingsSection
+        title="Custom themes"
+        description="Design your own palette. Activating one makes it the app's visual mode."
+      >
+        <div className="flex flex-col gap-1.5 py-2">
+          {appearance.customThemes.length === 0 && (
+            <p className="text-[0.78rem] leading-relaxed text-[var(--color-ink-faint)]">
+              No custom themes yet — start one from the palette currently on screen.
+            </p>
+          )}
+          {appearance.customThemes.map((theme) => {
+            const active = appearance.visualMode === 'custom' && appearance.activeCustomThemeId === theme.id;
+            return (
+              <div
+                key={theme.id}
+                className={cn(
+                  'flex items-center gap-2 rounded-[var(--radius-control)] border px-2.5 py-2 transition-colors',
+                  active
+                    ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)]'
+                    : 'border-[var(--color-line)] hover:border-[var(--color-line-strong)]',
+                )}
+              >
+                <button
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => activateTheme(theme.id)}
+                  className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                >
+                  <span className="flex shrink-0 -space-x-1" aria-hidden="true">
+                    {(['canvas', 'accent', 'ink'] as const).map((key) => (
+                      <span
+                        key={key}
+                        className="h-4 w-4 rounded-full border border-[var(--color-overlay)]"
+                        style={{ backgroundColor: theme.colors[key] }}
+                      />
+                    ))}
+                  </span>
+                  <span className="min-w-0 truncate text-[0.82rem] text-[var(--color-ink)]">{theme.name}</span>
+                </button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setEditingThemeId(theme.id)}
+                  aria-label={`Edit ${theme.name}`}
+                >
+                  <Pencil size={13} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => deleteTheme(theme.id)}
+                  aria-label={`Delete ${theme.name}`}
+                >
+                  <Trash2 size={13} />
+                </Button>
+              </div>
+            );
+          })}
+          <Button variant="secondary" size="sm" onClick={createTheme} className="mt-1 self-start">
+            <Plus size={14} aria-hidden="true" />
+            New custom theme
+          </Button>
+        </div>
+      </SettingsSection>
+
+      <CustomThemeEditorDialog themeId={editingThemeId} onClose={() => setEditingThemeId(null)} />
 
       <SettingsSection title="Density">
         <div className="grid grid-cols-2 gap-1.5 py-2">

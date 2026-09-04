@@ -16,14 +16,49 @@ export type ViewId = 'library' | 'timeline' | 'manuscript' | 'matrix' | 'setting
 
 /**
  * A full-app color reskin, independent of the dark/light `theme` toggle.
- * `natural` is today's look (theme still applies). Every other mode is a
- * complete, fixed palette that overrides the color tokens everywhere —
- * `theme` stops mattering while one is active. `hueShift` keeps the natural
- * palette app-wide; its distinctive effect is specific to the Map Builder
- * (see `data/mapVisualModes.ts`), where it's what makes overlapping terrain
- * strokes drift in hue.
+ * `natural` is today's look (theme still applies). `cyberpunk`/`pastel`/
+ * `monochrome` are complete, fixed palettes that override the color tokens
+ * everywhere — `theme` stops mattering while one is active. `hueShift` keeps
+ * the natural palette app-wide; its distinctive effect is specific to the
+ * Map Builder (see `data/mapVisualModes.ts`), where it's what makes
+ * overlapping terrain strokes drift in hue. `custom` behaves like the fixed
+ * palettes but reads its colors from `activeCustomThemeId` instead of a
+ * built-in constant.
  */
-export type VisualMode = 'natural' | 'cyberpunk' | 'pastel' | 'monochrome' | 'hueShift';
+export type VisualMode = 'natural' | 'cyberpunk' | 'pastel' | 'monochrome' | 'hueShift' | 'custom';
+
+/** Every color token a visual mode can set, keyed the same as the
+ * `--color-*` CSS custom properties they become (camelCase here, kebab
+ * there). A hex/rgb/hsl string — anything valid in a CSS custom property. */
+export interface CustomThemeColors {
+  canvas: string;
+  surface: string;
+  surfaceRaised: string;
+  surfaceSunken: string;
+  overlay: string;
+  line: string;
+  lineStrong: string;
+  ink: string;
+  inkMuted: string;
+  inkFaint: string;
+  accent: string;
+  accentSoft: string;
+  accentInk: string;
+  danger: string;
+  success: string;
+  grammar: string;
+}
+
+/** A user-created visual mode — same shape as the built-in palettes, just
+ * editable. Lives in Settings, not a project, since it's a device
+ * preference rather than story content. */
+export interface CustomTheme {
+  id: string;
+  name: string;
+  colors: CustomThemeColors;
+  createdAt: number;
+  updatedAt: number;
+}
 
 /** The kinds of writable document that live in the folder tree. `custom`
  * covers every user-defined category — which one is named by `categoryId`
@@ -508,6 +543,9 @@ export interface Project {
 export interface AppearanceSettings {
   theme: ThemeMode;
   visualMode: VisualMode;
+  customThemes: CustomTheme[];
+  /** Which custom theme is applied when `visualMode === 'custom'`. */
+  activeCustomThemeId: string | null;
   density: Density;
   /** Root font scale, 0.9–1.25. */
   uiScale: number;
