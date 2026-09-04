@@ -26,15 +26,11 @@ import { pickImageAsDataUrl } from '@/utils/download';
 import { clamp } from '@/utils/time';
 import { cn } from '@/utils/cn';
 import { TERRAIN_TYPES } from '@/data/terrainTypes';
-import {
-  MAP_VISUAL_MODES,
-  collisionHueRotations,
-  terrainColorForMode,
-  type MapVisualMode,
-} from '@/data/mapVisualModes';
+import { MAP_VISUAL_MODES, collisionHueRotations, terrainColorForMode } from '@/data/mapVisualModes';
 import { MAP_ICONS, mapIconById, type MapIconCategory } from '@/data/mapIcons';
 import { MapIconGlyph } from '@/components/map/MapIconGlyph';
-import type { MapMarker, MapStamp, MapTerrainStroke, TerrainKind } from '@/types/domain';
+import { useSettingsStore } from '@/store/settingsStore';
+import type { MapMarker, MapStamp, MapTerrainStroke, TerrainKind, VisualMode } from '@/types/domain';
 
 interface Viewport {
   x: number;
@@ -89,7 +85,11 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
   const [activeIcon, setActiveIcon] = useState('tree');
   const [activeStampColor, setActiveStampColor] = useState(STAMP_COLORS[0]);
   const [livePoints, setLivePoints] = useState<Array<{ x: number; y: number }> | null>(null);
-  const [visualMode, setVisualMode] = useState<MapVisualMode>('natural');
+  // Starts from the app-wide visual mode (Settings → Appearance) so a
+  // freshly opened map already matches; from there it's a per-session
+  // override, same as the tool/brush state above.
+  const appVisualMode = useSettingsStore((s) => s.settings.appearance.visualMode);
+  const [visualMode, setVisualMode] = useState<VisualMode>(appVisualMode);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const svgRef = useRef<SVGSVGElement>(null);
@@ -291,7 +291,7 @@ export function MapBuilder({ mapId: requestedMapId }: { mapId?: string | null })
           <Select
             value={visualMode}
             aria-label="Visual mode"
-            onChange={(event) => setVisualMode(event.target.value as MapVisualMode)}
+            onChange={(event) => setVisualMode(event.target.value as VisualMode)}
             className="w-40 text-[0.78rem]"
           >
             {MAP_VISUAL_MODES.map((mode) => (
@@ -1076,7 +1076,7 @@ function TerrainInspector({
   onDelete,
 }: {
   stroke: MapTerrainStroke;
-  visualMode: MapVisualMode;
+  visualMode: VisualMode;
   onClose: () => void;
   onChangeTerrain: (terrain: TerrainKind) => void;
   onChangeBrushSize: (size: number) => void;

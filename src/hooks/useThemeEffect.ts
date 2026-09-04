@@ -41,5 +41,12 @@ export function useThemeEffect(): void {
     root.style.setProperty('--ui-scale', String(appearance.uiScale));
     root.classList.toggle('motion-off', appearance.reducedMotion || !appearance.animations);
     root.dataset.density = appearance.density;
-  }, [appearance.uiScale, appearance.reducedMotion, appearance.animations, appearance.density]);
+    root.dataset.visualMode = appearance.visualMode;
+  }, [
+    appearance.uiScale,
+    appearance.reducedMotion,
+    appearance.animations,
+    appearance.density,
+    appearance.visualMode,
+  ]);
 }

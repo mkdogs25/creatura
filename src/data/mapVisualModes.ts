@@ -1,9 +1,7 @@
-import type { MapTerrainStroke, TerrainKind } from '@/types/domain';
-
-export type MapVisualMode = 'natural' | 'cyberpunk' | 'pastel' | 'monochrome' | 'hueShift';
+import type { MapTerrainStroke, TerrainKind, VisualMode } from '@/types/domain';
 
 export interface VisualModeDef {
-  id: MapVisualMode;
+  id: VisualMode;
   label: string;
   description: string;
 }
@@ -70,7 +68,7 @@ const MONOCHROME: Palette = {
   swamp: '#4A4A4A',
 };
 
-const PALETTES: Record<Exclude<MapVisualMode, 'hueShift'>, Palette> = {
+const PALETTES: Record<Exclude<VisualMode, 'hueShift'>, Palette> = {
   natural: NATURAL,
   cyberpunk: CYBERPUNK,
   pastel: PASTEL,
@@ -80,7 +78,7 @@ const PALETTES: Record<Exclude<MapVisualMode, 'hueShift'>, Palette> = {
 /** A terrain kind's base paint color under a visual mode. `hueShift` paints
  * from the natural palette — its look comes from the per-stroke rotation in
  * `collisionHueRotations`, not a different base palette. */
-export function terrainColorForMode(kind: TerrainKind, mode: MapVisualMode): string {
+export function terrainColorForMode(kind: TerrainKind, mode: VisualMode): string {
   return mode === 'hueShift' ? NATURAL[kind] : PALETTES[mode][kind];
 }
 

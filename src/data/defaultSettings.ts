@@ -6,6 +6,7 @@ export function defaultSettings(): Settings {
     id: 'app',
     appearance: {
       theme: 'dark',
+      visualMode: 'natural',
       density: 'comfortable',
       uiScale: 1,
       animations: true,

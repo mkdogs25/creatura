@@ -14,6 +14,17 @@ export type ThemeMode = 'dark' | 'light' | 'system';
 export type Density = 'compact' | 'comfortable';
 export type ViewId = 'library' | 'timeline' | 'manuscript' | 'matrix' | 'settings';
 
+/**
+ * A full-app color reskin, independent of the dark/light `theme` toggle.
+ * `natural` is today's look (theme still applies). Every other mode is a
+ * complete, fixed palette that overrides the color tokens everywhere —
+ * `theme` stops mattering while one is active. `hueShift` keeps the natural
+ * palette app-wide; its distinctive effect is specific to the Map Builder
+ * (see `data/mapVisualModes.ts`), where it's what makes overlapping terrain
+ * strokes drift in hue.
+ */
+export type VisualMode = 'natural' | 'cyberpunk' | 'pastel' | 'monochrome' | 'hueShift';
+
 /** The kinds of writable document that live in the folder tree. `custom`
  * covers every user-defined category — which one is named by `categoryId`
  * on the document itself, since there can be any number of them. */
@@ -496,6 +507,7 @@ export interface Project {
 
 export interface AppearanceSettings {
   theme: ThemeMode;
+  visualMode: VisualMode;
   density: Density;
   /** Root font scale, 0.9–1.25. */
   uiScale: number;

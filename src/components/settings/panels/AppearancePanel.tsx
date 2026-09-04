@@ -1,15 +1,28 @@
-import { Monitor, Moon, Sun } from 'lucide-react';
+import { Blend, Circle, Flower2, Monitor, Moon, Sun, Zap } from 'lucide-react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { SettingsSection } from '@/components/settings/panels/SettingsSection';
 import { Switch } from '@/components/ui/Switch';
 import { Slider } from '@/components/ui/Slider';
 import { cn } from '@/utils/cn';
-import type { Density, ThemeMode } from '@/types/domain';
+import type { Density, ThemeMode, VisualMode } from '@/types/domain';
 
 const THEMES: Array<{ id: ThemeMode; label: string; icon: typeof Moon }> = [
   { id: 'dark', label: 'Dark', icon: Moon },
   { id: 'light', label: 'Light', icon: Sun },
   { id: 'system', label: 'System', icon: Monitor },
+];
+
+const VISUAL_MODES: Array<{ id: VisualMode; label: string; hint: string; icon: typeof Zap }> = [
+  { id: 'natural', label: 'Natural', hint: 'The theme above, as designed.', icon: Sun },
+  { id: 'cyberpunk', label: 'Neon Cyberpunk', hint: 'High-contrast neon on black.', icon: Zap },
+  { id: 'pastel', label: 'Pastel', hint: 'Soft, muted tones.', icon: Flower2 },
+  { id: 'monochrome', label: 'Monochromatic', hint: 'Near-grayscale throughout.', icon: Circle },
+  {
+    id: 'hueShift',
+    label: 'Hue Shift on Collision',
+    hint: 'Natural colors, plus a Map Builder effect where overlapping terrain drifts in hue.',
+    icon: Blend,
+  },
 ];
 
 const DENSITIES: Array<{ id: Density; label: string; hint: string }> = [
@@ -43,6 +56,44 @@ export function AppearanceSettings() {
               >
                 <Icon size={16} aria-hidden="true" />
                 <span className="text-[0.78rem]">{option.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Visual mode"
+        description="A full reskin of the whole app. Anything but Natural overrides the theme above."
+      >
+        <div className="flex flex-col gap-1.5 py-2">
+          {VISUAL_MODES.map((option) => {
+            const Icon = option.icon;
+            const active = appearance.visualMode === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={active}
+                onClick={() => update('appearance', { visualMode: option.id })}
+                className={cn(
+                  'flex items-start gap-2.5 rounded-[var(--radius-control)] border px-3 py-2.5 text-left transition-colors',
+                  active
+                    ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)]'
+                    : 'border-[var(--color-line)] hover:border-[var(--color-line-strong)]',
+                )}
+              >
+                <Icon
+                  size={15}
+                  className={cn('mt-0.5 shrink-0', active ? 'text-[var(--color-accent)]' : 'text-[var(--color-ink-faint)]')}
+                  aria-hidden="true"
+                />
+                <span className="min-w-0">
+                  <span className="block text-[0.82rem] text-[var(--color-ink)]">{option.label}</span>
+                  <span className="mt-0.5 block text-[0.72rem] leading-relaxed text-[var(--color-ink-faint)]">
+                    {option.hint}
+                  </span>
+                </span>
               </button>
             );
           })}

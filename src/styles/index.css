@@ -102,6 +102,95 @@
 }
 
 /*
+ * Visual modes (Settings → Appearance). `natural` and `hueShift` use the
+ * dark/light tokens above unchanged — `hueShift`'s effect is specific to
+ * the Map Builder (see `data/mapVisualModes.ts`), not a different palette.
+ * Every other mode is a complete, self-contained look: it overrides every
+ * color token regardless of the dark/light class, so the theme toggle stops
+ * mattering while one is active. Same specificity as the dark/light blocks
+ * above, so source order is what makes these win.
+ */
+:root[data-visual-mode='cyberpunk'] {
+  --color-canvas: #0a0a0f;
+  --color-surface: #12121a;
+  --color-surface-raised: #1a1a26;
+  --color-surface-sunken: #06060a;
+  --color-overlay: #15151f;
+
+  --color-line: #2a2a3d;
+  --color-line-strong: #3d3d57;
+
+  --color-ink: #e8fbff;
+  --color-ink-muted: #8fa8c9;
+  --color-ink-faint: #5c6a8a;
+
+  --color-accent: #ff2fd6;
+  --color-accent-soft: #3d1030;
+  --color-accent-ink: #0a0a0f;
+
+  --color-danger: #ff3860;
+  --color-success: #39ff88;
+  --color-grammar: #00e5ff;
+
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.5), 0 0 24px -8px rgb(255 47 214 / 0.35);
+  --shadow-float: 0 0 48px -12px rgb(0 229 255 / 0.4);
+}
+
+:root[data-visual-mode='pastel'] {
+  --color-canvas: #faf6f9;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #f3edf5;
+  --color-overlay: #ffffff;
+
+  --color-line: #ead9e8;
+  --color-line-strong: #dbc0d8;
+
+  --color-ink: #4a3b52;
+  --color-ink-muted: #8a7691;
+  --color-ink-faint: #b7a6bc;
+
+  --color-accent: #ef9fbb;
+  --color-accent-soft: #fbe4ec;
+  --color-accent-ink: #4a2030;
+
+  --color-danger: #e0a3a3;
+  --color-success: #a8ddc0;
+  --color-grammar: #a8c8e8;
+
+  --shadow-panel: 0 1px 2px rgb(74 59 82 / 0.06), 0 8px 24px -14px rgb(74 59 82 / 0.18);
+  --shadow-float: 0 14px 44px -14px rgb(74 59 82 / 0.22);
+}
+
+:root[data-visual-mode='monochrome'] {
+  --color-canvas: #1c1c1c;
+  --color-surface: #242424;
+  --color-surface-raised: #2c2c2c;
+  --color-surface-sunken: #161616;
+  --color-overlay: #262626;
+
+  --color-line: #3a3a3a;
+  --color-line-strong: #4a4a4a;
+
+  --color-ink: #ededed;
+  --color-ink-muted: #a8a8a8;
+  --color-ink-faint: #707070;
+
+  --color-accent: #e0e0e0;
+  --color-accent-soft: #3a3a3a;
+  --color-accent-ink: #1c1c1c;
+
+  /* Functional colors keep just enough of a whisper of hue to stay
+     distinguishable — true zero-hue danger/success would be illegible. */
+  --color-danger: #c47a7a;
+  --color-success: #7ac4a0;
+  --color-grammar: #7a9ec4;
+
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.48);
+  --shadow-float: 0 12px 40px -12px rgb(0 0 0 / 0.58);
+}
+
+/*
  * Density. The two settings differ only in these two values, which the
  * repeated surfaces (tree rows, metadata and settings sections) read directly,
  * so "compact" is a real layout change rather than a stored preference nobody
